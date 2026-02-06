@@ -45,6 +45,9 @@ export default function MatchScorecard() {
                 }
 
                 const data = matchDoc.data();
+                console.log('🔍 FIREBASE MATCH DATA:', data);
+                console.log('🔍 STATE OBJECT:', data.state);
+                console.log('🔍 SCORECARD:', data.state?.scorecard);
                 setMatchData({ id: matchDoc.id, ...data });
 
                 // Set up real-time listener for live matches
