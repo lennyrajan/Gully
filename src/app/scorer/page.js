@@ -237,6 +237,53 @@ function ScorerBoard({ config }) {
         return player + suffix;
     };
 
+    const generateTransferCode = async () => {
+        if (!matchState.matchId) {
+            alert("Match ID missing. Cannot generate transfer code.");
+            return;
+        }
+
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 15 * 60000).toISOString(); // 15 mins
+
+        try {
+            await updateDoc(doc(db, 'matches', matchState.matchId), {
+                transferCode: { code, expiresAt },
+                lastUpdated: new Date().toISOString()
+            });
+            setTransferCode(code);
+            setShowTransferModal(true);
+        } catch (error) {
+            console.error("Error generating transfer code:", error);
+            alert("Failed to generate code. Check your connection.");
+        }
+    };
+
+    const abandonMatch = async () => {
+        const reason = window.prompt("Reason for abandoning the match (e.g., Rain, Bad Light):");
+        if (reason === null) return;
+
+        if (matchState.matchId) {
+            try {
+                await updateDoc(doc(db, 'matches', matchState.matchId), {
+                    status: 'ABANDONED',
+                    abandonReason: reason,
+                    lastUpdated: new Date().toISOString()
+                });
+                alert('Match Abandoned.');
+                localStorage.removeItem('currentMatchConfig');
+                router.push('/profile');
+            } catch (error) {
+                console.error("Error abandoning match:", error);
+                alert("Failed to abandon match in Firestore.");
+            }
+        } else {
+            alert("Match ID missing. Cannot abandon match in Firestore.");
+            localStorage.removeItem('currentMatchConfig');
+            router.push('/profile');
+        }
+    };
+
 
     const calculateDLS = () => {
         const team1Resources = 100; // Team 1 usually used 100% unless their innings was also cut short
