@@ -81,6 +81,8 @@ export const useScorer = (initialState = {}) => {
 
     const deepCloneScorecard = (scorecard) => {
         const newScorecard = { batting: {}, bowling: {} };
+        if (!scorecard) return newScorecard;
+
         if (scorecard.batting) {
             for (const [name, stats] of Object.entries(scorecard.batting)) {
                 newScorecard.batting[name] = { ...stats };
@@ -252,8 +254,10 @@ export const useScorer = (initialState = {}) => {
 
     const addBall = useCallback((ballData) => {
         setMatchState(prev => {
-            // Strict guard: No scoring if paused or missing key players
-            if (prev.isPaused || !prev.bowler || !prev.striker || !prev.nonStriker) return prev;
+            // Strict guard: No scoring if paused, missing key players, or match finished
+            if (prev.isPaused || !prev.bowler || !prev.striker || !prev.nonStriker || prev.isMatchFinished || prev.isInningsComplete) {
+                return prev;
+            }
 
             const fullOvers = Math.floor(prev.balls / 6);
             if (fullOvers >= prev.maxOvers || prev.wickets >= prev.maxWickets) return prev;
@@ -505,8 +509,8 @@ export const useScorer = (initialState = {}) => {
 
             // Check if target is chased (2nd innings)
             const isSecondInnings = prev.innings === 2;
-            const targetScore = isSecondInnings && prev.completedInnings?.[0]?.totalRuns ? prev.completedInnings[0].totalRuns + 1 : null;
-            const isTargetChased = isSecondInnings && targetScore && newState.totalRuns >= targetScore;
+            const targetScore = (isSecondInnings && prev.completedInnings?.[0]) ? (prev.completedInnings[0].totalRuns + 1) : null;
+            const isTargetChased = isSecondInnings && targetScore !== null && newState.totalRuns >= targetScore;
 
             // Innings is complete if: overs done, all out, or target chased
             if ((isOversComplete || isAllOut || isTargetChased) && !newState.isInningsComplete) {

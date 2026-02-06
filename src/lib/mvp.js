@@ -25,6 +25,8 @@
  */
 
 export const calculateMVPs = (scorecard) => {
+    if (!scorecard || !scorecard.batting || !scorecard.bowling) return [];
+
     const playerPoints = {};
 
     // process batting

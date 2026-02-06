@@ -99,7 +99,7 @@ function ScorerBoard({ config }) {
     const [newBatterPending, setNewBatterPending] = useState('');
 
     const handleRunClick = (runs) => {
-        if (matchState.isPaused || !matchState.bowler) return;
+        if (matchState.isPaused || !matchState.bowler || matchState.isMatchFinished || matchState.isInningsComplete) return;
         addBall({
             runs,
             isExtra: !!selectedExtra,
@@ -1372,13 +1372,16 @@ function ScorerBoard({ config }) {
                                 {(() => {
                                     const team1 = matchState.completedInnings?.[0];
                                     const team2Runs = matchState.totalRuns;
-                                    const target = team1 ? team1.totalRuns + 1 : 0;
+                                    const target = (team1 !== undefined && team1 !== null) ? (team1.totalRuns + 1) : null;
+
+                                    if (target === null) return "Match Complete";
+
                                     if (team2Runs >= target) {
                                         const wicketsLeft = (matchState.maxWickets || 10) - matchState.wickets;
-                                        return `${matchState.battingTeam.name} won by ${wicketsLeft} wicket${wicketsLeft > 1 ? 's' : ''}`;
+                                        return `${matchState.battingTeam?.name || 'Batting Team'} won by ${wicketsLeft} wicket${wicketsLeft > 1 ? 's' : ''}`;
                                     } else {
                                         const runsDiff = target - team2Runs - 1;
-                                        return `${matchState.bowlingTeam.name} won by ${runsDiff} run${runsDiff > 1 ? 's' : ''}`;
+                                        return `${matchState.bowlingTeam?.name || 'Bowling Team'} won by ${runsDiff} run${runsDiff > 1 ? 's' : ''}`;
                                     }
                                 })()}
                             </p>
