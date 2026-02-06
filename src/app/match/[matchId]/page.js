@@ -117,12 +117,6 @@ export default function MatchScorecard() {
     const state = matchData.state || {};
     const isLive = matchData.status === 'LIVE' || matchData.status === 'live';
 
-    // Debug: Log the match data structure
-    console.log('Match Data:', matchData);
-    console.log('State:', state);
-    console.log('Batting Team:', state.battingTeam);
-    console.log('Bowling Team:', state.bowlingTeam);
-
     return (
         <main style={{
             minHeight: '100vh',

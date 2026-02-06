@@ -129,11 +129,11 @@ export default function Home() {
                 fontWeight: 'bold',
                 fontSize: '1.25rem'
               }}>
-                {clubSettings?.name?.charAt(0) || 'G'}
+                G
               </div>
               <div>
                 <h1 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                  {clubSettings?.name || 'Gully'}
+                  Gully
                 </h1>
                 <p style={{ fontSize: '0.75rem', opacity: 0.7 }}>Cricket Pavilion</p>
               </div>
@@ -236,13 +236,8 @@ export default function Home() {
 
           {/* Recent Matches */}
           <motion.div variants={item}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <div style={{ marginBottom: '1.5rem' }}>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Recent Matches</h2>
-              {recentMatches.length > 0 && (
-                <Link href="/matches" style={{ color: 'var(--primary)', fontSize: '0.875rem', fontWeight: 600 }}>
-                  View All
-                </Link>
-              )}
             </div>
 
             {loading ? (
