@@ -212,7 +212,7 @@ export default function Home() {
             }}>
               <Trophy size={48} style={{ margin: '0 auto 1rem' }} />
               <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '1rem' }}>
-                Welcome to {clubSettings?.name || 'Gully'}
+                Welcome to Gully
               </h2>
               <p style={{ fontSize: '1.1rem', opacity: 0.9, marginBottom: '2rem' }}>
                 Your digital cricket pavilion. Track live scores, view match history, and connect with your club.
