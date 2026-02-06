@@ -115,11 +115,9 @@ function ScorerBoard({ config }) {
     const handleStrikeChoice = (isNewBatterStriker) => {
         const survivor = isStrikerOutChoice ? matchState.nonStriker : matchState.striker;
         if (isNewBatterStriker) {
-            setStriker(newBatterPending);
-            setNonStriker(survivor);
+            setBatters(newBatterPending, survivor);
         } else {
-            setStriker(survivor);
-            setNonStriker(newBatterPending);
+            setBatters(survivor, newBatterPending);
         }
         setNewBatterPending('');
         setWicketTypePending(null);

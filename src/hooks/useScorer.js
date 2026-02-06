@@ -69,6 +69,15 @@ export const useScorer = (initialState = {}) => {
         });
     }, []);
 
+    const setBatters = useCallback((str, nonStr) => {
+        setMatchState(prev => ({
+            ...prev,
+            striker: str,
+            nonStriker: nonStr,
+            isPaused: !str || !nonStr || !prev.bowler
+        }));
+    }, []);
+
     const setBowler = useCallback((name) => {
         setMatchState(prev => ({
             ...prev,
@@ -246,6 +255,7 @@ export const useScorer = (initialState = {}) => {
         undo,
         setStriker,
         setNonStriker,
+        setBatters,
         setBowler
     };
 };
