@@ -836,7 +836,12 @@ function ScorerBoard({ config }) {
                 <div style={{ textAlign: 'center' }}>
                     <h1 style={{ fontSize: '1rem', opacity: 0.7 }}>{matchState.battingTeam.name} vs {matchState.bowlingTeam.name}</h1>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-                        <p style={{ fontWeight: 600 }}>1st Innings • Max {matchState.maxOvers} Ov</p>
+                        <p style={{ fontWeight: 600 }}>
+                            {matchState.innings === 2
+                                ? `${matchState.battingTeam.name} chasing ${matchState.dlsRevisedTarget || (matchState.completedInnings?.[0]?.totalRuns + 1 || '?')}`
+                                : `1st Innings • Max ${matchState.maxOvers} Ov`
+                            }
+                        </p>
                         {matchState.matchId && (
                             <span style={{
                                 fontSize: '0.65rem',
@@ -942,11 +947,12 @@ function ScorerBoard({ config }) {
                                         <span style={{ color: 'var(--primary)' }}>🎯 Target Reached!</span>
                                     ) : (
                                         <>
-                                            <span style={{ color: 'var(--primary)', fontSize: '1.5rem' }}>{runsRequired}</span> runs required
+                                            <span style={{ fontWeight: 800 }}>{matchState.battingTeam.name}</span> requires{' '}
+                                            <span style={{ color: 'var(--primary)', fontSize: '1.5rem' }}>{runsRequired}</span> runs
                                             {' '}in{' '}
                                             <span style={{ color: 'var(--accent)' }}>{ballsRemaining}</span> balls
                                             {' '}with{' '}
-                                            <span style={{ color: 'var(--secondary)' }}>{wicketsRemaining}</span> wickets remaining
+                                            <span style={{ color: 'var(--secondary)' }}>{wicketsRemaining}</span> wickets remaining to win
                                         </>
                                     )}
                                 </p>
