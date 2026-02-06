@@ -105,11 +105,10 @@ function ScorerBoard({ config }) {
         console.log('🔍 Guard conditions:', {
             isPaused: matchState.isPaused,
             hasBowler: !!matchState.bowler,
-            isMatchFinished: matchState.isMatchFinished,
-            isInningsComplete: matchState.isInningsComplete
+            isMatchFinished: matchState.isMatchFinished
         });
 
-        if (matchState.isPaused || !matchState.bowler || matchState.isMatchFinished || matchState.isInningsComplete) {
+        if (matchState.isPaused || !matchState.bowler || matchState.isMatchFinished) {
             console.log('❌ Scoring blocked by guard conditions');
             return;
         }
