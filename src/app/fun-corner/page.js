@@ -9,49 +9,13 @@ import {
     Plus,
     Zap,
     Flame,
-    Camera
+    Trophy
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { db } from '@/lib/firebase';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { useAuth } from '@/lib/AuthProvider';
 import ProtectedRoute from '@/components/ProtectedRoute';
-
-const MOCK_POSTS = [
-    {
-        id: 1,
-        user: 'Lenny Rajan',
-        avatar: 'LR',
-        content: 'Huge win today against SVCC! PVCC moving up the table! 🏆🏏',
-        image: null,
-        likes: 12,
-        comments: 3,
-        time: '2 hours ago',
-        type: 'post'
-    },
-    {
-        id: 2,
-        user: 'Banter Bot',
-        avatar: '🤖',
-        content: '🚨 OUCH! Sanjay just dropped a sitter at long-on. Start the fine meeting! 💸💸',
-        image: null,
-        likes: 24,
-        comments: 8,
-        time: '4 hours ago',
-        type: 'banter'
-    },
-    {
-        id: 3,
-        user: 'PVCC Admin',
-        avatar: 'PV',
-        content: 'Poll: Who had the best tea this weekend at the Monarch ground? ☕️',
-        image: null,
-        likes: 5,
-        comments: 15,
-        time: 'Yesterday',
-        type: 'poll'
-    }
-];
 
 export default function FunCorner() {
     const [posts, setPosts] = useState([]);
@@ -269,37 +233,50 @@ export default function FunCorner() {
                                     {post.userAvatar || post.userName?.charAt(0) || 'U'}
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <span style={{ fontSize: '0.875rem' }}>{post.comments}</span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                                        <p style={{ fontWeight: 600 }}>{post.userName || 'User'}</p>
+                                        <span style={{ opacity: 0.5, fontSize: '0.875rem' }}>•</span>
+                                        <p style={{ opacity: 0.5, fontSize: '0.875rem' }}>{formatTime(post.timestamp)}</p>
+                                    </div>
+                                    <p style={{ lineHeight: 1.6 }}>{post.content}</p>
+                                </div>
+                            </div>
+
+                            {/* Actions */}
+                            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                                <button
+                                    onClick={() => handleLikePost(post.id, post.likedBy)}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem',
+                                        padding: '0.5rem',
+                                        color: post.likedBy?.includes(currentUser?.uid) ? 'var(--error)' : 'var(--foreground)',
+                                        opacity: post.likedBy?.includes(currentUser?.uid) ? 1 : 0.6
+                                    }}
+                                >
+                                    <Heart size={18} fill={post.likedBy?.includes(currentUser?.uid) ? 'currentColor' : 'none'} />
+                                    <span style={{ fontSize: '0.875rem' }}>{post.likes || 0}</span>
                                 </button>
-                                <button style={{ background: 'none', border: 'none', marginLeft: 'auto', color: 'var(--foreground)', opacity: 0.7 }}>
-                                    <Share2 size={20} />
-                                </button>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                    padding: '0.5rem',
+                                    opacity: 0.6
+                                }}>
+                                    <MessageCircle size={18} />
+                                    <span style={{ fontSize: '0.875rem' }}>{post.comments || 0}</span>
+                                </div>
                             </div>
                         </motion.div>
                     ))}
                 </div>
 
-                {/* Floating Action Button */}
-                <button style={{
-                    position: 'fixed',
-                    bottom: '2rem',
-                    right: '1.5rem',
-                    width: '56px',
-                    height: '56px',
-                    borderRadius: '50%',
-                    background: 'var(--primary)',
-                    color: 'white',
-                    border: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-                    zIndex: 100
-                }}>
-                    <Plus size={24} />
-                </button>
-
-                {/* Hot Topics Horizontal Scroll (Optional/Bonus) */}
+                {/* Hot Topics Horizontal Scroll */}
                 <div style={{ marginTop: '2rem', padding: '0 1.5rem' }}>
                     <h2 style={{ fontSize: '0.875rem', fontWeight: 700, opacity: 0.5, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '1rem' }}>
                         Trending Topics
@@ -312,27 +289,25 @@ export default function FunCorner() {
                     </div>
                 </div>
             </main>
-            );
+        </ProtectedRoute>
+    );
 }
 
-            function TopicBadge({icon, label}) {
+function TopicBadge({ icon, label }) {
     return (
-            <div style={{
-                whiteSpace: 'nowrap',
-                background: 'var(--card-bg)',
-                padding: '0.5rem 1rem',
-                borderRadius: '50px',
-                fontSize: '0.875rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                border: '1px solid var(--card-border)'
-            }}>
-                {icon}
-                {label}
-            </div>
-            );
-    }
-        </ProtectedRoute>
+        <div style={{
+            whiteSpace: 'nowrap',
+            background: 'var(--card-bg)',
+            padding: '0.5rem 1rem',
+            borderRadius: '50px',
+            fontSize: '0.875rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            border: '1px solid var(--card-border)'
+        }}>
+            {icon}
+            {label}
+        </div>
     );
 }
