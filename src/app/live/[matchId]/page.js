@@ -97,7 +97,7 @@ export default function LiveScorePage() {
         ? matchState.completedInnings[0].totalRuns + 1
         : null;
     const runsRequired = targetScore ? Math.max(0, targetScore - matchState.totalRuns) : null;
-    const maxBalls = (matchState.maxOvers || 20) * 6;
+    const maxBalls = (matchState.maxOvers) * 6;
     const ballsRemaining = Math.max(0, maxBalls - matchState.balls);
     const requiredRunRate = ballsRemaining > 0 && runsRequired ? ((runsRequired / ballsRemaining) * 6).toFixed(2) : '0.00';
 

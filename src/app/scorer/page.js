@@ -818,9 +818,9 @@ function ScorerBoard({ config }) {
                     {matchState.innings === 2 && (matchState.completedInnings?.[0] || matchState.dlsRevisedTarget) && (() => {
                         const targetScore = matchState.dlsRevisedTarget || (matchState.completedInnings[0].totalRuns + 1);
                         const runsRequired = Math.max(0, targetScore - matchState.totalRuns);
-                        const maxBalls = (matchState.maxOvers || 20) * 6;
+                        const maxBalls = (matchState.maxOvers) * 6;
                         const ballsRemaining = Math.max(0, maxBalls - matchState.balls);
-                        const wicketsRemaining = 10 - matchState.wickets;
+                        const wicketsRemaining = (matchState.maxWickets || 10) - matchState.wickets;
 
                         return (
                             <motion.div

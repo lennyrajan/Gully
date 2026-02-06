@@ -419,9 +419,9 @@ export const useScorer = (initialState = {}) => {
 
             // 4. Check for Innings Completion
             const totalOvers = Math.floor(newState.balls / 6);
-            const maxOvers = prev.maxOvers || 20;
-            const isOversComplete = totalOvers >= maxOvers;
-            const isAllOut = newState.wickets >= 10;
+            const maxOvers = prev.maxOvers;
+            const isOversComplete = Math.floor(newState.balls / 6) >= maxOvers;
+            const isAllOut = newState.wickets >= (prev.maxWickets || 10);
 
             // Check if target is chased (2nd innings)
             const isSecondInnings = prev.innings === 2;
