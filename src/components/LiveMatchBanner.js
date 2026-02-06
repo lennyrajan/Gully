@@ -47,7 +47,7 @@ export default function LiveMatchBanner() {
     const lastEvent = currentMatch.lastEvent || {};
 
     return (
-        <Link href={`/live/${currentMatch.id}`} style={{ textDecoration: 'none' }}>
+        <Link href={`/match/${currentMatch.id}`} style={{ textDecoration: 'none' }}>
             <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
