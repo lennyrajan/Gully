@@ -99,11 +99,18 @@ function ScorerBoard({ config }) {
     };
 
     const getAvailableBatters = () => {
-        return matchState.battingTeam.players.filter(p => p !== matchState.striker && p !== matchState.nonStriker);
+        return matchState.battingTeam.players.filter(p =>
+            p !== matchState.striker &&
+            p !== matchState.nonStriker &&
+            !matchState.scorecard.batting[p]?.dismissal
+        );
     };
 
     const getAvailableBowlers = () => {
-        return matchState.bowlingTeam.players.filter(p => p !== matchState.bowler);
+        return matchState.bowlingTeam.players.filter(p =>
+            p !== matchState.bowler &&
+            p !== matchState.lastBowler
+        );
     };
 
 

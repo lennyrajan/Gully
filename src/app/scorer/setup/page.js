@@ -206,7 +206,11 @@ export default function MatchSetup() {
                                     />
                                 </div>
                             </div>
-                            <button className="btn btn-primary" style={{ width: '100%', marginTop: '2rem', padding: '1rem' }} onClick={() => setStep(2)}>
+                            <button className="btn btn-primary" style={{ width: '100%', marginTop: '2rem', padding: '1rem' }} onClick={() => {
+                                if (matchConfig.maxOvers <= 0) alert('Please enter number of overs.');
+                                else if (matchConfig.maxWickets <= 0) alert('Please enter wicket limit.');
+                                else setStep(2);
+                            }}>
                                 Next: {matchConfig.teamA.name} Squad
                             </button>
                         </motion.div>

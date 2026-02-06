@@ -32,6 +32,7 @@ export const useScorer = (initialState = {}) => {
         ballsLog: [],
         isPaused: true, // For selection prompts
         pauseReason: 'INIT', // INIT, WICKET, OVER
+        lastBowler: null,
         ...initialState
     });
 
@@ -137,6 +138,7 @@ export const useScorer = (initialState = {}) => {
             if (isEndOfOver && !newState.isPaused) {
                 newState.isPaused = true;
                 newState.pauseReason = 'OVER';
+                newState.lastBowler = prev.bowler;
                 newState.bowler = null;
             }
 
