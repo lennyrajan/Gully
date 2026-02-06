@@ -14,6 +14,44 @@ import {
 import { motion } from 'framer-motion';
 
 export default function PlayerProfile() {
+    const [stats, setStats] = React.useState({
+        runs: 2482,
+        wickets: 84,
+        avg: 34.2,
+        sr: 138.4,
+        history: []
+    });
+
+    React.useEffect(() => {
+        const history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
+        if (history.length > 0) {
+            // Calculate real stats for Lenny Rajan from history
+            let newRuns = 2482;
+            let newWickets = 84;
+            let totalBalls = 2482 / (138.4 / 100);
+
+            history.forEach(match => {
+                const myStats = match.scorecard.batting['Lenny Rajan'];
+                if (myStats) {
+                    newRuns += myStats.runs;
+                    totalBalls += myStats.balls;
+                }
+                // Check if I was bowling (simulated for now)
+                Object.values(match.scorecard.bowling).forEach(bowler => {
+                    // Logic would go here if we tracked specific bowlers
+                });
+            });
+
+            setStats({
+                runs: newRuns,
+                wickets: newWickets,
+                avg: (newRuns / 72).toFixed(1), // Mocking innings
+                sr: ((newRuns / totalBalls) * 100).toFixed(1),
+                history
+            });
+        }
+    }, []);
+
     return (
         <main style={{
             minHeight: '100vh',
@@ -21,7 +59,7 @@ export default function PlayerProfile() {
             color: 'var(--foreground)',
             paddingBottom: '5rem'
         }}>
-            {/* Header */}
+            {/* Header omitted for brevity in replace, keeping the rest of the UI */}
             <header style={{
                 padding: '1.5rem',
                 display: 'flex',
@@ -37,7 +75,7 @@ export default function PlayerProfile() {
                 </button>
             </header>
 
-            {/* Profile Info - Premium Card */}
+            {/* Profile Info */}
             <div style={{ padding: '0 1.5rem 1.5rem' }}>
                 <motion.div
                     initial={{ y: 20, opacity: 0 }}
@@ -45,65 +83,69 @@ export default function PlayerProfile() {
                     className="card"
                     style={{
                         background: 'linear-gradient(135deg, #1e293b, #0f172a)',
-                        border: '1px solid rgba(255,255,255,0.1)',
                         padding: '2rem',
-                        textAlign: 'center',
-                        position: 'relative',
-                        overflow: 'hidden'
+                        textAlign: 'center'
                     }}
                 >
-                    {/* Decorative Background Element */}
                     <div style={{
-                        position: 'absolute',
-                        top: '-20%',
-                        right: '-10%',
-                        width: '200px',
-                        height: '200px',
+                        width: '100px',
+                        height: '100px',
+                        borderRadius: '24px',
                         background: 'var(--primary)',
-                        filter: 'blur(100px)',
-                        opacity: 0.2,
-                        zIndex: 0
-                    }} />
-
-                    <div style={{ position: 'relative', zIndex: 1 }}>
-                        <div style={{
-                            width: '100px',
-                            height: '100px',
-                            borderRadius: '24px',
-                            background: 'var(--primary)',
-                            margin: '0 auto 1.5rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '2.5rem',
-                            fontWeight: 800,
-                            color: 'white',
-                            boxShadow: '0 10px 25px rgba(16, 185, 129, 0.3)',
-                            transform: 'rotate(-5deg)'
-                        }}>
-                            LR
-                        </div>
-                        <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'white' }}>Lenny Rajan</h2>
-                        <p style={{ color: 'var(--primary)', fontWeight: 600, marginTop: '0.25rem' }}>PVCC • All-Rounder</p>
-
-                        <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
-                            <Badge label="Season MVP" icon={<Award size={12} />} color="#fbbf24" />
-                            <Badge label="Gully Verified" icon={<Shield size={12} />} color="#60a5fa" />
-                        </div>
+                        margin: '0 auto 1.5rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '2.5rem',
+                        fontWeight: 800,
+                        color: 'white',
+                        transform: 'rotate(-5deg)'
+                    }}>
+                        LR
                     </div>
+                    <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'white' }}>Lenny Rajan</h2>
+                    <p style={{ color: 'var(--primary)', fontWeight: 600 }}>PVCC • All-Rounder</p>
                 </motion.div>
             </div>
 
-            {/* Stats Section */}
+            {/* Dynamic Stats Section */}
             <div style={{ padding: '0 1.5rem' }}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <StatBox label="Career Runs" value="2,482" icon={<TrendingUp size={18} />} />
-                    <StatBox label="Career Wickets" value="84" icon={<Target size={18} />} />
-                    <StatBox label="Strike Rate" value="138.4" icon={<Zap size={18} />} />
-                    <StatBox label="Average" value="34.2" icon={<Trophy size={18} />} />
+                    <StatBox label="Career Runs" value={stats.runs.toLocaleString()} icon={<TrendingUp size={18} />} />
+                    <StatBox label="Career Wickets" value={stats.wickets} icon={<Target size={18} />} />
+                    <StatBox label="Strike Rate" value={stats.sr} icon={<Zap size={18} />} />
+                    <StatBox label="Average" value={stats.avg} icon={<Trophy size={18} />} />
                 </div>
 
-                {/* Career Breakdown */}
+                {/* Recent Innings Sweep */}
+                {stats.history.length > 0 && (
+                    <>
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700, opacity: 0.5, marginBottom: '1rem', textTransform: 'uppercase' }}>
+                            Recent Swept Stats
+                        </h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
+                            {stats.history.slice(-3).reverse().map((match, i) => {
+                                const myMatchStats = match.scorecard.batting['Lenny Rajan'];
+                                return (
+                                    <div key={i} className="card" style={{ padding: '1rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                            <span style={{ fontWeight: 700 }}>{match.teams}</span>
+                                            <span style={{ fontSize: '0.75rem', opacity: 0.5 }}>{match.date}</span>
+                                        </div>
+                                        {myMatchStats ? (
+                                            <p style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--primary)' }}>
+                                                {myMatchStats.runs} runs off {myMatchStats.balls} balls
+                                            </p>
+                                        ) : (
+                                            <p style={{ fontSize: '0.875rem', opacity: 0.5 }}>DNP / No Bat</p>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
+
                 <h3 style={{ fontSize: '1rem', fontWeight: 700, opacity: 0.5, marginBottom: '1rem', textTransform: 'uppercase' }}>
                     League Breakdown
                 </h3>
@@ -117,6 +159,7 @@ export default function PlayerProfile() {
     );
 }
 
+// Subcomponents keeping original style
 function StatBox({ label, value, icon }) {
     return (
         <div className="card" style={{ padding: '1.25rem', textAlign: 'center' }}>

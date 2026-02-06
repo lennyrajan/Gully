@@ -1,20 +1,34 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useScorer } from '@/hooks/useScorer';
 import {
     ChevronLeft,
     RotateCcw,
     XOctagon,
     Settings2,
-    Info
+    Info,
+    X,
+    Trophy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function ScorerPage() {
-    const { matchState, overs, addBall, undo } = useScorer();
+    const router = useRouter();
+    const [config, setConfig] = useState(null);
+    const { matchState, overs, addBall, undo } = useScorer(config || {});
     const [showWicketModal, setShowWicketModal] = useState(false);
+    const [showScorecard, setShowScorecard] = useState(false);
     const [selectedExtra, setSelectedExtra] = useState(null);
+    const [fielder, setFielder] = useState('');
+
+    useEffect(() => {
+        const saved = localStorage.getItem('currentMatchConfig');
+        if (saved) {
+            setConfig(JSON.parse(saved));
+        }
+    }, []);
 
     const handleRunClick = (runs) => {
         addBall({
@@ -27,13 +41,26 @@ export default function ScorerPage() {
     };
 
     const handleWicket = (type) => {
-        addBall({
-            runs: 0,
-            isExtra: false,
-            isWicket: true,
-            wicketType: type
-        });
+        if (['Caught', 'Run Out'].includes(type) && !fielder) {
+            const f = prompt(`Enter ${type === 'Caught' ? 'Fielder' : 'Fielder'} Name:`);
+            addBall({ runs: 0, isExtra: false, isWicket: true, wicketType: type, fielder: f || 'Fielder' });
+        } else {
+            addBall({ runs: 0, isExtra: false, isWicket: true, wicketType: type });
+        }
         setShowWicketModal(false);
+    };
+
+    const finalizeMatch = () => {
+        const stats = {
+            date: new Date().toLocaleDateString(),
+            teams: `${matchState.battingTeam.name} vs ${matchState.bowlingTeam.name}`,
+            scorecard: matchState.scorecard
+        };
+        const history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
+        history.push(stats);
+        localStorage.setItem('matchHistory', JSON.stringify(history));
+        alert('Match Finalized! Stats synced to profiles.');
+        router.push('/profile');
     };
 
     return (
@@ -56,12 +83,19 @@ export default function ScorerPage() {
                     <ChevronLeft />
                 </button>
                 <div style={{ textAlign: 'center' }}>
-                    <h1 style={{ fontSize: '1rem', opacity: 0.7 }}>PVCC vs SVCC</h1>
-                    <p style={{ fontWeight: 600 }}>1st Innings</p>
+                    <h1 style={{ fontSize: '1rem', opacity: 0.7 }}>{matchState.battingTeam.name} vs {matchState.bowlingTeam.name}</h1>
+                    <p style={{ fontWeight: 600 }}>1st Innings • Max {matchState.maxOvers} Ov</p>
                 </div>
-                <button className="btn" style={{ padding: '0.5rem' }}>
-                    <Settings2 size={20} />
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn" style={{ padding: '0.5rem' }} onClick={() => setShowScorecard(true)}>
+                        <Info size={20} />
+                    </button>
+                    {(Math.floor(matchState.balls / 6) >= matchState.maxOvers || matchState.wickets >= 10) && (
+                        <button className="btn" style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem 1rem' }} onClick={finalizeMatch}>
+                            Finish
+                        </button>
+                    )}
+                </div>
             </header>
 
             {/* Main Score Display */}
@@ -71,10 +105,11 @@ export default function ScorerPage() {
                 flexDirection: 'column',
                 justifyContent: 'center',
                 alignItems: 'center',
-                padding: '2rem'
+                padding: '2rem',
+                position: 'relative'
             }}>
                 <motion.div
-                    key={matchState.totalRuns}
+                    key={matchState.totalRuns + '-' + matchState.balls}
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     style={{ textAlign: 'center' }}
@@ -87,27 +122,69 @@ export default function ScorerPage() {
                     </p>
                 </motion.div>
 
+                {/* Ball by Ball Log (Feedback for dots) */}
+                <div style={{
+                    marginTop: '2rem',
+                    display: 'flex',
+                    gap: '0.5rem',
+                    height: '40px',
+                    alignItems: 'center'
+                }}>
+                    {matchState.ballsLog.map((b, i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '50%',
+                                background: b === '•' ? 'var(--card-border)' : b === 'W' ? 'var(--error)' : 'var(--primary)',
+                                color: 'white',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '0.75rem',
+                                fontWeight: 800
+                            }}
+                        >
+                            {b}
+                        </motion.div>
+                    ))}
+                    {matchState.ballsLog.length === 0 && (
+                        <p style={{ opacity: 0.3, fontSize: '0.875rem' }}>Beginning of over...</p>
+                    )}
+                </div>
+
                 <div style={{
                     marginTop: '3rem',
                     width: '100%',
+                    maxWidth: '400px',
                     display: 'flex',
                     justifyContent: 'space-around',
                     background: 'var(--card-bg)',
-                    padding: '1rem',
-                    borderRadius: 'var(--radius-lg)'
+                    padding: '1.25rem',
+                    borderRadius: 'var(--radius-lg)',
+                    boxShadow: 'var(--shadow-md)'
                 }}>
                     <div style={{ textAlign: 'center' }}>
                         <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Striker</p>
-                        <p style={{ fontWeight: 700, color: 'var(--primary)' }}>{matchState.striker}*</p>
+                        <p style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>{matchState.striker}*</p>
+                        <p style={{ fontSize: '0.75rem', opacity: 0.6 }}>
+                            {matchState.scorecard.batting[matchState.striker]?.runs || 0}({matchState.scorecard.batting[matchState.striker]?.balls || 0})
+                        </p>
                     </div>
                     <div style={{ textAlign: 'center', opacity: 0.7 }}>
                         <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Non-Striker</p>
-                        <p style={{ fontWeight: 600 }}>{matchState.nonStriker}</p>
+                        <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>{matchState.nonStriker}</p>
+                        <p style={{ fontSize: '0.75rem', opacity: 0.6 }}>
+                            {matchState.scorecard.batting[matchState.nonStriker]?.runs || 0}({matchState.scorecard.batting[matchState.nonStriker]?.balls || 0})
+                        </p>
                     </div>
                 </div>
             </section>
 
-            {/* Scoring Controls (The "One-Handed" Pad) */}
+            {/* Scoring Controls */}
             <section style={{
                 background: 'var(--card-bg)',
                 borderTopLeftRadius: '2.5rem',
@@ -118,7 +195,6 @@ export default function ScorerPage() {
                 gap: '1.5rem',
                 boxShadow: '0 -10px 25px rgba(0,0,0,0.1)'
             }}>
-                {/* Extras Toggles */}
                 <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
                     {['wide', 'noBall', 'bye', 'legBye'].map(type => (
                         <button
@@ -141,14 +217,13 @@ export default function ScorerPage() {
                     ))}
                 </div>
 
-                {/* Runs Grid */}
                 <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(4, 1fr)',
                     gap: '1rem'
                 }}>
                     {[0, 1, 2, 3, 4, 6].map(run => (
-                        <kbd
+                        <button
                             key={run}
                             onClick={() => handleRunClick(run)}
                             className="btn"
@@ -157,11 +232,12 @@ export default function ScorerPage() {
                                 fontSize: '1.5rem',
                                 borderRadius: 'var(--radius-md)',
                                 background: run === 4 || run === 6 ? 'var(--accent)' : 'var(--card-border)',
-                                color: 'white'
+                                color: 'white',
+                                fontWeight: 800
                             }}
                         >
                             {run}
-                        </kbd>
+                        </button>
                     ))}
 
                     <button
@@ -172,14 +248,14 @@ export default function ScorerPage() {
                             background: 'var(--error)',
                             color: 'white',
                             height: '70px',
-                            fontSize: '1.25rem'
+                            fontSize: '1.25rem',
+                            fontWeight: 800
                         }}
                     >
                         <XOctagon style={{ marginRight: '0.5rem' }} /> WICKET
                     </button>
                 </div>
 
-                {/* Undo / Actions */}
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem' }}>
                     <button onClick={undo} style={{
                         background: 'none',
@@ -194,7 +270,7 @@ export default function ScorerPage() {
                         <RotateCcw size={24} />
                         <span style={{ marginTop: '0.25rem' }}>UNDO</span>
                     </button>
-                    <button style={{
+                    <button onClick={() => setShowScorecard(true)} style={{
                         background: 'none',
                         border: 'none',
                         color: 'var(--foreground)',
@@ -204,11 +280,69 @@ export default function ScorerPage() {
                         alignItems: 'center',
                         fontSize: '0.75rem'
                     }}>
-                        <Info size={24} />
-                        <span style={{ marginTop: '0.25rem' }}>LOG</span>
+                        <Settings2 size={24} />
+                        <span style={{ marginTop: '0.25rem' }}>FULL CARD</span>
                     </button>
                 </div>
             </section>
+
+            {/* Scorecard Modal */}
+            <AnimatePresence>
+                {showScorecard && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'var(--background)',
+                            zIndex: 2000,
+                            padding: '1.5rem',
+                            overflowY: 'auto'
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Full Scorecard</h2>
+                            <button className="btn" onClick={() => setShowScorecard(false)}><X /></button>
+                        </div>
+
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>
+                            {matchState.battingTeam.name} Batting
+                        </h3>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>
+                                <span>BATTER</span>
+                                <span>R</span>
+                                <span>B</span>
+                                <span>SR</span>
+                            </div>
+                            {Object.entries(matchState.scorecard.batting).map(([name, stats]) => (
+                                <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.9rem' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontWeight: 600 }}>{name}</span>
+                                        <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{stats.dismissal || 'not out'}</span>
+                                    </div>
+                                    <span>{stats.runs}</span>
+                                    <span>{stats.balls}</span>
+                                    <span>{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0'}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--card-bg)', borderRadius: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: 800 }}>
+                                <span>TOTAL</span>
+                                <span>{matchState.totalRuns}/{matchState.wickets}</span>
+                            </div>
+                            <p style={{ fontSize: '0.875rem', opacity: 0.6, marginTop: '0.5rem' }}>
+                                Extras: {matchState.totalRuns - Object.values(matchState.scorecard.batting).reduce((a, b) => a + b.runs, 0)}
+                            </p>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Wicket Modal */}
             <AnimatePresence>
