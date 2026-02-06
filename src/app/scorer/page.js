@@ -53,6 +53,7 @@ export default function ScorerPage() {
 
 function ScorerBoard({ config }) {
     const router = useRouter();
+    const { currentUser } = useAuth();
     const {
         matchState,
         overs,

@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, setDoc, updateDoc, doc, query, orderBy, where, limit } from 'firebase/firestore';
 import { useAuth } from '@/lib/AuthProvider';
+import { getDeviceId } from '@/lib/utils';
 
 export default function MatchSetup() {
     const router = useRouter();
@@ -37,18 +38,11 @@ export default function MatchSetup() {
     });
     const [isFlipping, setIsFlipping] = useState(false);
     const [savedTeams, setSavedTeams] = useState({});
-    const [activeMatches, setActiveMatches] = useState([]);
     const [deviceId, setDeviceId] = useState(null);
     const { currentUser } = useAuth();
 
     useEffect(() => {
-        // Initialize or retrieve Device ID
-        let id = localStorage.getItem('gully_device_id');
-        if (!id) {
-            id = `dev_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
-            localStorage.setItem('gully_device_id', id);
-        }
-        setDeviceId(id);
+        setDeviceId(getDeviceId());
 
         const loadTeams = async () => {
             try {
@@ -64,29 +58,6 @@ export default function MatchSetup() {
             }
         };
         loadTeams();
-
-        // Fetch active matches for this device
-        const fetchActiveMatches = async () => {
-            if (!id) return;
-            try {
-                const q = query(
-                    collection(db, 'matches'),
-                    where('deviceId', '==', id),
-                    where('status', '==', 'LIVE'),
-                    orderBy('lastUpdated', 'desc'),
-                    limit(3)
-                );
-                const snapshot = await getDocs(q);
-                const matches = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                setActiveMatches(matches);
-            } catch (err) {
-                console.error("Error fetching active matches:", err);
-            }
-        };
-        fetchActiveMatches();
     }, []);
 
     const handlePlayerChange = (team, index, value) => {
@@ -273,120 +244,7 @@ export default function MatchSetup() {
                     {step === 1 && (
                         <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>Match Details</h2>
-                            <p style={{ opacity: 0.6, marginBottom: '2rem' }}>Start a fresh match or resume a live one.</p>
-
-                            {/* Resume Active Match Section */}
-                            {activeMatches.length > 0 && (
-                                <div style={{ marginBottom: '2rem' }}>
-                                    <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <div style={{ width: '6px', height: '6px', background: 'var(--primary)', borderRadius: '50%', boxShadow: '0 0 8px var(--primary)' }} />
-                                        RESUME ACTIVE MATCH (THIS DEVICE)
-                                    </h3>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                        {activeMatches.map((match) => (
-                                            <div
-                                                key={match.id}
-                                                className="card"
-                                                style={{
-                                                    padding: '1rem',
-                                                    display: 'flex',
-                                                    justifyContent: 'space-between',
-                                                    alignItems: 'center',
-                                                    background: 'rgba(255,255,255,0.03)',
-                                                    border: '1px solid var(--card-border)'
-                                                }}
-                                            >
-                                                <div>
-                                                    <p style={{ fontWeight: 800, fontSize: '1rem' }}>{match.teamA.name} vs {match.teamB.name}</p>
-                                                    <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>
-                                                        Last seen: {new Date(match.lastUpdated).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                                                    </p>
-                                                </div>
-                                                <button
-                                                    className="btn btn-primary"
-                                                    style={{ padding: '0.5rem 1rem', fontSize: '0.75rem' }}
-                                                    onClick={() => {
-                                                        const config = {
-                                                            ...match,
-                                                            matchId: match.id
-                                                        };
-                                                        localStorage.setItem('currentMatchConfig', JSON.stringify(config));
-                                                        router.push('/scorer');
-                                                    }}
-                                                >
-                                                    RESUME
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div style={{ marginBottom: '2rem' }}>
-                                <button
-                                    className="btn"
-                                    style={{
-                                        width: '100%',
-                                        padding: '1.25rem',
-                                        background: 'rgba(59, 130, 246, 0.1)',
-                                        border: '1px dashed var(--primary)',
-                                        color: 'var(--primary)',
-                                        fontWeight: 800,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        gap: '0.75rem'
-                                    }}
-                                    onClick={async () => {
-                                        const code = window.prompt("Enter 6-digit Transfer Code:");
-                                        if (!code) return;
-
-                                        try {
-                                            const q = query(collection(db, 'matches'), where('transferCode.code', '==', code));
-                                            const snapshot = await getDocs(q);
-
-                                            if (snapshot.empty) {
-                                                alert("Invalid or expired code.");
-                                                return;
-                                            }
-
-                                            const matchDoc = snapshot.docs[0];
-                                            const matchData = matchDoc.data();
-
-                                            // Check expiration
-                                            const expiresAt = new Date(matchData.transferCode.expiresAt);
-                                            if (expiresAt < new Date()) {
-                                                alert("This code has expired.");
-                                                return;
-                                            }
-
-                                            // Take over!
-                                            const config = {
-                                                ...matchData,
-                                                matchId: matchDoc.id,
-                                                deviceId // Update local config with current deviceId
-                                            };
-
-                                            // Update deviceId in Firestore so THIS device can resume if needed
-                                            await updateDoc(doc(db, 'matches', matchDoc.id), {
-                                                deviceId: deviceId,
-                                                lastUpdated: new Date().toISOString()
-                                            });
-
-                                            localStorage.setItem('currentMatchConfig', JSON.stringify(config));
-                                            alert("Scoring transferred successfully!");
-                                            router.push('/scorer');
-
-                                        } catch (err) {
-                                            console.error("Error joining match:", err);
-                                            alert("Failed to join match. Check your connection.");
-                                        }
-                                    }}
-                                >
-                                    <Plus size={20} />
-                                    JOIN EXISTING MATCH (USE CODE)
-                                </button>
-                            </div>
+                            <p style={{ opacity: 0.6, marginBottom: '2rem' }}>Set up a fresh game from scratch.</p>
 
                             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
@@ -480,8 +338,24 @@ export default function MatchSetup() {
 
                     {(step === 2 || step === 3) && (
                         <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.5rem' }}>
-                                <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>{step === 2 ? matchConfig.teamA.name : matchConfig.teamB.name} Squad</h2>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                    <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>{step === 2 ? matchConfig.teamA.name : matchConfig.teamB.name} Squad</h2>
+                                    <button
+                                        className="btn"
+                                        style={{ fontSize: '0.7rem', padding: '0.4rem 0.8rem', background: 'var(--card-border)' }}
+                                        onClick={() => {
+                                            const team = step === 2 ? 'teamA' : 'teamB';
+                                            const newPlayers = [...matchConfig[team].players];
+                                            const emptyIdx = newPlayers.findIndex(p => !p.trim());
+                                            if (emptyIdx !== -1) {
+                                                newPlayers[emptyIdx] = `Guest ${emptyIdx + 1}`;
+                                                handlePlayerChange(team, emptyIdx, newPlayers[emptyIdx]);
+                                            }
+                                        }}
+                                    >
+                                        + ADD GUEST
+                                    </button>
+                                </div>
                                 {Object.keys(savedTeams).length > 0 && (
                                     <div style={{ width: '180px' }}>
                                         <label style={{ fontSize: '0.7rem', opacity: 0.5 }}>Load Recent Squad</label>
@@ -556,149 +430,149 @@ export default function MatchSetup() {
                     )}
 
 
-                    {step === 4 && (
-                        <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} style={{ textAlign: 'center' }}>
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '2rem' }}>Coin Toss</h2>
+                {step === 4 && (
+                    <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} style={{ textAlign: 'center' }}>
+                        <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '2rem' }}>Coin Toss</h2>
 
-                            <div className="card" style={{ marginBottom: '2rem', textAlign: 'left' }}>
-                                <label style={{ fontSize: '0.75rem', opacity: 0.5, display: 'block', marginBottom: '1rem' }}>WHO IS CALLING?</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                                    {['teamA', 'teamB'].map(t => (
-                                        <button
-                                            key={t}
-                                            className={`btn ${tossResult.callingTeam === t ? 'btn-primary' : ''}`}
-                                            onClick={() => setTossResult({ ...tossResult, callingTeam: t, winner: '', outcome: '' })}
-                                            style={{ padding: '0.75rem', border: '1px solid var(--card-border)' }}
-                                            disabled={isFlipping}
-                                        >
-                                            {matchConfig[t].name}
-                                        </button>
-                                    ))}
+                        <div className="card" style={{ marginBottom: '2rem', textAlign: 'left' }}>
+                            <label style={{ fontSize: '0.75rem', opacity: 0.5, display: 'block', marginBottom: '1rem' }}>WHO IS CALLING?</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                                {['teamA', 'teamB'].map(t => (
+                                    <button
+                                        key={t}
+                                        className={`btn ${tossResult.callingTeam === t ? 'btn-primary' : ''}`}
+                                        onClick={() => setTossResult({ ...tossResult, callingTeam: t, winner: '', outcome: '' })}
+                                        style={{ padding: '0.75rem', border: '1px solid var(--card-border)' }}
+                                        disabled={isFlipping}
+                                    >
+                                        {matchConfig[t].name}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <label style={{ fontSize: '0.75rem', opacity: 0.5, display: 'block', marginBottom: '1rem' }}>THE CALL</label>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                {['heads', 'tails'].map(c => (
+                                    <button
+                                        key={c}
+                                        className={`btn ${tossResult.call === c ? 'btn-primary' : ''}`}
+                                        onClick={() => setTossResult({ ...tossResult, call: c, winner: '', outcome: '' })}
+                                        style={{ padding: '0.75rem', border: '1px solid var(--card-border)' }}
+                                        disabled={isFlipping}
+                                    >
+                                        {c.toUpperCase()}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div style={{ position: 'relative', height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2rem' }}>
+                            <motion.div
+                                animate={isFlipping ? {
+                                    rotateY: [0, 180, 360, 540, 720, 900, 1080],
+                                    y: [0, -100, 0]
+                                } : { rotateY: 0, y: 0 }}
+                                transition={{ duration: 1.5, ease: "easeInOut" }}
+                                style={{
+                                    width: '100px',
+                                    height: '100px',
+                                    borderRadius: '50%',
+                                    background: 'linear-gradient(45deg, #ffd700, #ff8c00)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: 'white',
+                                    fontSize: '2rem',
+                                    fontWeight: 900,
+                                    boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                                    border: '4px solid rgba(255,255,255,0.3)',
+                                    position: 'relative',
+                                    transformStyle: 'preserve-3d'
+                                }}
+                            >
+                                <span style={{ backfaceVisibility: 'hidden' }}>
+                                    {tossResult.outcome ? tossResult.outcome[0].toUpperCase() : (tossResult.call ? tossResult.call[0].toUpperCase() : 'G')}
+                                </span>
+                            </motion.div>
+                        </div>
+
+                        {!tossResult.winner && !isFlipping && (
+                            <button className="btn btn-primary" style={{ width: '100%', padding: '1.25rem' }} onClick={runToss}>
+                                Flip the Coin!
+                            </button>
+                        )}
+
+                        {tossResult.winner && !isFlipping && (
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1.5rem', borderRadius: '16px', marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                                    <p style={{ opacity: 0.6, fontSize: '0.875rem' }}>It's {tossResult.outcome.toUpperCase()}!</p>
+                                    <p style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '0.5rem' }}>
+                                        {matchConfig[tossResult.winner].name} WON the toss!
+                                    </p>
                                 </div>
 
-                                <label style={{ fontSize: '0.75rem', opacity: 0.5, display: 'block', marginBottom: '1rem' }}>THE CALL</label>
+                                <p style={{ opacity: 0.6, marginBottom: '1rem' }}>What did they choose?</p>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                    {['heads', 'tails'].map(c => (
-                                        <button
-                                            key={c}
-                                            className={`btn ${tossResult.call === c ? 'btn-primary' : ''}`}
-                                            onClick={() => setTossResult({ ...tossResult, call: c, winner: '', outcome: '' })}
-                                            style={{ padding: '0.75rem', border: '1px solid var(--card-border)' }}
-                                            disabled={isFlipping}
-                                        >
-                                            {c.toUpperCase()}
-                                        </button>
-                                    ))}
+                                    <button
+                                        className={`btn ${tossResult.choice === 'bat' ? 'btn-primary' : ''}`}
+                                        style={{ padding: '1rem', border: '1px solid var(--card-border)' }}
+                                        onClick={() => setTossResult({ ...tossResult, choice: 'bat' })}
+                                    >
+                                        BAT
+                                    </button>
+                                    <button
+                                        className={`btn ${tossResult.choice === 'bowl' ? 'btn-primary' : ''}`}
+                                        style={{ padding: '1rem', border: '1px solid var(--card-border)' }}
+                                        onClick={() => setTossResult({ ...tossResult, choice: 'bowl' })}
+                                    >
+                                        BOWL
+                                    </button>
+                                </div>
+
+                                {tossResult.choice && (
+                                    <button className="btn btn-primary" style={{ width: '100%', marginTop: '2rem', padding: '1.25rem' }} onClick={() => setStep(5)}>
+                                        Continue to Confirmation
+                                    </button>
+                                )}
+                            </motion.div>
+                        )}
+
+                        <button className="btn" style={{ marginTop: '1rem', opacity: 0.5 }} onClick={() => setStep(3)}>Back</button>
+                    </motion.div>
+                )}
+
+                {step === 5 && (
+                    <motion.div key="step5" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                        <div style={{ textAlign: 'center', padding: '2rem 0' }}>
+                            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                                <Trophy size={40} />
+                            </div>
+                            <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Ready to Play!</h2>
+                            <div className="card" style={{ marginTop: '1.5rem', textAlign: 'left' }}>
+                                <p style={{ fontSize: '0.875rem', opacity: 0.6 }}>Match Summary:</p>
+                                <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                    <p><strong>Batting First:</strong> {
+                                        (tossResult.winner === 'teamA' && tossResult.choice === 'bat') || (tossResult.winner === 'teamB' && tossResult.choice === 'bowl')
+                                            ? matchConfig.teamA.name
+                                            : matchConfig.teamB.name
+                                    }</p>
+                                    <p><strong>Bowling First:</strong> {
+                                        (tossResult.winner === 'teamA' && tossResult.choice === 'bat') || (tossResult.winner === 'teamB' && tossResult.choice === 'bowl')
+                                            ? matchConfig.teamB.name
+                                            : matchConfig.teamA.name
+                                    }</p>
+                                    <p><strong>Overs/Wickets:</strong> {matchConfig.maxOvers} Ov / {matchConfig.maxWickets} Wkts</p>
                                 </div>
                             </div>
-
-                            <div style={{ position: 'relative', height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2rem' }}>
-                                <motion.div
-                                    animate={isFlipping ? {
-                                        rotateY: [0, 180, 360, 540, 720, 900, 1080],
-                                        y: [0, -100, 0]
-                                    } : { rotateY: 0, y: 0 }}
-                                    transition={{ duration: 1.5, ease: "easeInOut" }}
-                                    style={{
-                                        width: '100px',
-                                        height: '100px',
-                                        borderRadius: '50%',
-                                        background: 'linear-gradient(45deg, #ffd700, #ff8c00)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: 'white',
-                                        fontSize: '2rem',
-                                        fontWeight: 900,
-                                        boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
-                                        border: '4px solid rgba(255,255,255,0.3)',
-                                        position: 'relative',
-                                        transformStyle: 'preserve-3d'
-                                    }}
-                                >
-                                    <span style={{ backfaceVisibility: 'hidden' }}>
-                                        {tossResult.outcome ? tossResult.outcome[0].toUpperCase() : (tossResult.call ? tossResult.call[0].toUpperCase() : 'G')}
-                                    </span>
-                                </motion.div>
-                            </div>
-
-                            {!tossResult.winner && !isFlipping && (
-                                <button className="btn btn-primary" style={{ width: '100%', padding: '1.25rem' }} onClick={runToss}>
-                                    Flip the Coin!
-                                </button>
-                            )}
-
-                            {tossResult.winner && !isFlipping && (
-                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1.5rem', borderRadius: '16px', marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
-                                        <p style={{ opacity: 0.6, fontSize: '0.875rem' }}>It's {tossResult.outcome.toUpperCase()}!</p>
-                                        <p style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '0.5rem' }}>
-                                            {matchConfig[tossResult.winner].name} WON the toss!
-                                        </p>
-                                    </div>
-
-                                    <p style={{ opacity: 0.6, marginBottom: '1rem' }}>What did they choose?</p>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                        <button
-                                            className={`btn ${tossResult.choice === 'bat' ? 'btn-primary' : ''}`}
-                                            style={{ padding: '1rem', border: '1px solid var(--card-border)' }}
-                                            onClick={() => setTossResult({ ...tossResult, choice: 'bat' })}
-                                        >
-                                            BAT
-                                        </button>
-                                        <button
-                                            className={`btn ${tossResult.choice === 'bowl' ? 'btn-primary' : ''}`}
-                                            style={{ padding: '1rem', border: '1px solid var(--card-border)' }}
-                                            onClick={() => setTossResult({ ...tossResult, choice: 'bowl' })}
-                                        >
-                                            BOWL
-                                        </button>
-                                    </div>
-
-                                    {tossResult.choice && (
-                                        <button className="btn btn-primary" style={{ width: '100%', marginTop: '2rem', padding: '1.25rem' }} onClick={() => setStep(5)}>
-                                            Continue to Confirmation
-                                        </button>
-                                    )}
-                                </motion.div>
-                            )}
-
-                            <button className="btn" style={{ marginTop: '1rem', opacity: 0.5 }} onClick={() => setStep(3)}>Back</button>
-                        </motion.div>
-                    )}
-
-                    {step === 5 && (
-                        <motion.div key="step5" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-                            <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                                <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
-                                    <Trophy size={40} />
-                                </div>
-                                <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Ready to Play!</h2>
-                                <div className="card" style={{ marginTop: '1.5rem', textAlign: 'left' }}>
-                                    <p style={{ fontSize: '0.875rem', opacity: 0.6 }}>Match Summary:</p>
-                                    <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                        <p><strong>Batting First:</strong> {
-                                            (tossResult.winner === 'teamA' && tossResult.choice === 'bat') || (tossResult.winner === 'teamB' && tossResult.choice === 'bowl')
-                                                ? matchConfig.teamA.name
-                                                : matchConfig.teamB.name
-                                        }</p>
-                                        <p><strong>Bowling First:</strong> {
-                                            (tossResult.winner === 'teamA' && tossResult.choice === 'bat') || (tossResult.winner === 'teamB' && tossResult.choice === 'bowl')
-                                                ? matchConfig.teamB.name
-                                                : matchConfig.teamA.name
-                                        }</p>
-                                        <p><strong>Overs/Wickets:</strong> {matchConfig.maxOvers} Ov / {matchConfig.maxWickets} Wkts</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-                                <button className="btn" style={{ flex: 1 }} onClick={() => setStep(4)}>Edit Toss</button>
-                                <button className="btn btn-primary" style={{ flex: 2, padding: '1.25rem' }} onClick={startMatch}>Start Scoring</button>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-        </main>
+                        </div>
+                        <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+                            <button className="btn" style={{ flex: 1 }} onClick={() => setStep(4)}>Edit Toss</button>
+                            <button className="btn btn-primary" style={{ flex: 2, padding: '1.25rem' }} onClick={startMatch}>Start Scoring</button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+        </main >
     );
 }

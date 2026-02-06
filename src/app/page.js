@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/lib/ThemeProvider';
 import { useAuth } from '@/lib/AuthProvider';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, limit, getDocs, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import {
   Trophy,
   Calendar,
@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import LiveMatchBanner from '@/components/LiveMatchBanner';
+import { getDeviceId } from '@/lib/utils';
 
 export default function Home() {
   const { clubSettings } = useTheme();
@@ -26,6 +27,32 @@ export default function Home() {
   const [recentMatches, setRecentMatches] = useState([]);
   const [recentPosts, setRecentPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showPortal, setShowPortal] = useState(false);
+  const [activeMatches, setActiveMatches] = useState([]);
+  const [deviceId, setDeviceId] = useState(null);
+  const [transferCode, setTransferCode] = useState('');
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  useEffect(() => {
+    const id = getDeviceId();
+    setDeviceId(id);
+
+    const fetchActiveMatches = async () => {
+      try {
+        const q = query(
+          collection(db, 'matches'),
+          where('deviceId', '==', id),
+          where('status', '==', 'LIVE'),
+          orderBy('lastUpdated', 'desc')
+        );
+        const snapshot = await getDocs(q);
+        setActiveMatches(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      } catch (err) {
+        console.error("Error fetching active matches:", err);
+      }
+    };
+    fetchActiveMatches();
+  }, [showPortal]);
 
   // Load recent matches (public)
   useEffect(() => {
@@ -438,19 +465,19 @@ export default function Home() {
             <motion.div variants={item}>
               <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem' }}>Quick Actions</h2>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-                <Link href="/scorer/setup" style={{ textDecoration: 'none' }}>
+                <div onClick={() => setShowPortal(true)} style={{ textDecoration: 'none' }}>
                   <div className="card" style={{
                     cursor: 'pointer',
                     background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
                     color: 'white'
                   }}>
                     <Play size={24} style={{ marginBottom: '0.5rem' }} />
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Start Scoring</h3>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Scoring Portal</h3>
                     <p style={{ fontSize: '0.875rem', opacity: 0.9, marginTop: '0.25rem' }}>
-                      Set up a new match
+                      Start new, resume live, or transfer scoring
                     </p>
                   </div>
-                </Link>
+                </div>
                 <Link href="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
                   <div className="card" style={{ cursor: 'pointer' }}>
                     <User size={24} style={{ marginBottom: '0.5rem', color: 'var(--primary)' }} />
@@ -474,6 +501,164 @@ export default function Home() {
           )}
         </motion.div>
       </div>
+      {/* Scoring Portal Modal */}
+      <AnimatePresence>
+        {showPortal && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem',
+            zIndex: 1000
+          }}>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="card"
+              style={{ maxWidth: '450px', width: '100%', position: 'relative', overflow: 'hidden' }}
+            >
+              <button
+                onClick={() => setShowPortal(false)}
+                style={{ position: 'absolute', top: '1rem', right: '1rem', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}
+              >
+                <LogIn style={{ transform: 'rotate(180deg)' }} />
+              </button>
+
+              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>Scoring Portal</h2>
+              <p style={{ opacity: 0.6, marginBottom: '2rem', fontSize: '0.9rem' }}>Choose how you want to proceed with scoring.</p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                {/* 1. New Match */}
+                <Link href="/scorer/setup" style={{ textDecoration: 'none' }}>
+                  <div className="card" style={{ padding: '1.25rem', border: '1px solid var(--card-border)', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ width: '40px', height: '40px', background: 'var(--primary)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Play size={20} color="white" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: 800, color: 'var(--foreground)' }}>Start New Match</p>
+                      <p style={{ fontSize: '0.75rem', opacity: 0.5, color: 'var(--foreground)' }}>Setup a fresh game from scratch</p>
+                    </div>
+                  </div>
+                </Link>
+
+                {/* 2. Resume Match */}
+                <div style={{ padding: '1.25rem', border: '1px solid var(--card-border)', background: 'rgba(255,255,255,0.03)', borderRadius: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: activeMatches.length > 0 ? '1rem' : 0 }}>
+                    <div style={{ width: '40px', height: '40px', background: 'var(--secondary)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Clock size={20} color="white" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: 800 }}>Resume Live Match</p>
+                      <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Pick up from this browser/device</p>
+                    </div>
+                  </div>
+
+                  {activeMatches.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {activeMatches.map(match => (
+                        <div key={match.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(255,255,255,0.05)', borderRadius: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{match.teamA.name} vs {match.teamB.name}</span>
+                          <button
+                            className="btn btn-primary"
+                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
+                            onClick={() => {
+                              localStorage.setItem('currentMatchConfig', JSON.stringify({ ...match, matchId: match.id }));
+                              router.push('/scorer');
+                            }}
+                          >
+                            RESUME
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: '0.75rem', opacity: 0.4, fontStyle: 'italic', marginTop: '0.5rem' }}>No live matches found for this device.</p>
+                  )}
+                </div>
+
+                {/* 3. Transfer Match */}
+                <div style={{ padding: '1.25rem', border: '1px solid var(--card-border)', background: 'rgba(255,255,255,0.03)', borderRadius: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{ width: '40px', height: '40px', background: 'var(--success)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <LogIn size={20} color="white" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontWeight: 800 }}>Transfer Scoring</p>
+                      <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Enter 6-digit code from another device</p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="ENTER CODE"
+                      value={transferCode}
+                      onChange={(e) => setTransferCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      style={{
+                        flex: 1,
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid var(--card-border)',
+                        borderRadius: '0.5rem',
+                        padding: '0.5rem',
+                        textAlign: 'center',
+                        fontSize: '1rem',
+                        fontWeight: 800,
+                        letterSpacing: '0.2rem'
+                      }}
+                    />
+                    <button
+                      className="btn btn-primary"
+                      disabled={transferCode.length !== 6 || isTransferring}
+                      style={{ padding: '0 1rem' }}
+                      onClick={async () => {
+                        setIsTransferring(true);
+                        try {
+                          const q = query(collection(db, 'matches'), where('transferCode.code', '==', transferCode));
+                          const snap = await getDocs(q);
+                          if (snap.empty) {
+                            alert("Invalid or expired code.");
+                          } else {
+                            const matchDoc = snap.docs[0];
+                            const matchData = matchDoc.data();
+                            const now = new Date();
+                            const expires = new Date(matchData.transferCode.expiresAt);
+                            if (now > expires) {
+                              alert("Code has expired.");
+                            } else {
+                              // Success!
+                              const config = { ...matchData, matchId: matchDoc.id, deviceId };
+                              await updateDoc(doc(db, 'matches', matchDoc.id), {
+                                deviceId: deviceId,
+                                lastUpdated: new Date().toISOString(),
+                                transferCode: null // Consume the code
+                              });
+                              localStorage.setItem('currentMatchConfig', JSON.stringify(config));
+                              window.location.href = '/scorer';
+                            }
+                          }
+                        } catch (err) {
+                          console.error(err);
+                          alert("Transfer failed. Check connection.");
+                        } finally {
+                          setIsTransferring(false);
+                        }
+                      }}
+                    >
+                      {isTransferring ? '...' : 'JOIN'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

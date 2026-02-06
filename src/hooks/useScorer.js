@@ -408,8 +408,8 @@ export const useScorer = (initialState = {}) => {
 
             // 3. Striker Rotation (ICC Law 18.3)
             // Batsmen cross if odd runs are scored OR at end of over
-            // IMPORTANT: Rotation happens even if there's a wicket with odd runs
-            const shouldRotate = (runs % 2 !== 0) || (isEndOfOver && !isWicket);
+            // DO NOT ROTATE ON WICKET - ScorerBoard handles the new batter placement
+            const shouldRotate = !isWicket && ((runs % 2 !== 0) || (isEndOfOver));
 
             if (shouldRotate && newState.striker && newState.nonStriker) {
                 const temp = newState.striker;
