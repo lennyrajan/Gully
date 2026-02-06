@@ -328,23 +328,36 @@ export default function Home() {
                       {/* Match Info */}
                       <div style={{
                         display: 'flex',
-                        gap: '1rem',
+                        flexDirection: 'column',
+                        gap: '0.5rem',
                         fontSize: '0.75rem',
                         opacity: 0.7,
                         marginTop: 'auto'
                       }}>
-                        {match.date && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <Calendar size={14} />
-                            {new Date(match.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                          </div>
-                        )}
-                        {match.location && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <MapPin size={14} />
-                            {match.location}
-                          </div>
-                        )}
+                        <div style={{ display: 'flex', gap: '1rem' }}>
+                          {match.date && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <Calendar size={14} />
+                              {new Date(match.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </div>
+                          )}
+                          {match.location && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              <MapPin size={14} />
+                              {match.location}
+                            </div>
+                          )}
+                        </div>
+                        {/* Match ID */}
+                        <div style={{
+                          fontSize: '0.7rem',
+                          opacity: 0.5,
+                          fontFamily: 'monospace',
+                          borderTop: '1px solid var(--card-border)',
+                          paddingTop: '0.5rem'
+                        }}>
+                          ID: {match.id}
+                        </div>
                       </div>
                     </motion.div>
                   </Link>
