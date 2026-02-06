@@ -113,6 +113,20 @@ function ScorerBoard({ config }) {
         );
     };
 
+    const getPlayerDisplayName = (player, teamType) => {
+        if (!player) return '';
+        const team = teamType === 'batting' ? matchState.battingTeam : matchState.bowlingTeam;
+        const playerIndex = team.players.indexOf(player);
+        if (playerIndex === -1) return player;
+
+        let suffix = '';
+        if (team.captain === playerIndex) suffix += ' (C)';
+        if (team.viceCaptain === playerIndex) suffix += ' (VC)';
+        if (team.wicketKeeper === playerIndex) suffix += ' (WK)';
+
+        return player + suffix;
+    };
+
 
     return (
         <main style={{
@@ -156,7 +170,7 @@ function ScorerBoard({ config }) {
                                 >
                                     <option value="" disabled>Choose Striker...</option>
                                     {(getAvailableBatters().length > 0 ? getAvailableBatters() : ['Batter 1', 'Batter 2']).map(p => (
-                                        <option key={p} value={p}>{p}</option>
+                                        <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
                                     ))}
                                 </select>
                             </div>
@@ -173,7 +187,7 @@ function ScorerBoard({ config }) {
                                 >
                                     <option value="" disabled>Choose Non-Striker...</option>
                                     {(getAvailableBatters().map(p => (
-                                        <option key={p} value={p}>{p}</option>
+                                        <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
                                     )))}
                                 </select>
                             </div>
@@ -190,7 +204,7 @@ function ScorerBoard({ config }) {
                                 >
                                     <option value="" disabled>Choose Bowler...</option>
                                     {(getAvailableBowlers().length > 0 ? getAvailableBowlers() : ['Bowler 1', 'Bowler 2']).map(p => (
-                                        <option key={p} value={p}>{p}</option>
+                                        <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
                                     ))}
                                 </select>
                             </div>
@@ -281,14 +295,14 @@ function ScorerBoard({ config }) {
                 }}>
                     <div style={{ textAlign: 'center' }}>
                         <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Striker</p>
-                        <p style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>{matchState.striker || '?'}</p>
+                        <p style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>{getPlayerDisplayName(matchState.striker, 'batting') || '?'}</p>
                         <p style={{ fontSize: '0.75rem', opacity: 0.6 }}>
                             {matchState.striker ? `${matchState.scorecard.batting[matchState.striker]?.runs || 0}(${matchState.scorecard.batting[matchState.striker]?.balls || 0})` : '-'}
                         </p>
                     </div>
                     <div style={{ textAlign: 'center', opacity: 0.7 }}>
                         <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Non-Striker</p>
-                        <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>{matchState.nonStriker || '?'}</p>
+                        <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>{getPlayerDisplayName(matchState.nonStriker, 'batting') || '?'}</p>
                         <p style={{ fontSize: '0.75rem', opacity: 0.6 }}>
                             {matchState.nonStriker ? `${matchState.scorecard.batting[matchState.nonStriker]?.runs || 0}(${matchState.scorecard.batting[matchState.nonStriker]?.balls || 0})` : '-'}
                         </p>
@@ -350,8 +364,8 @@ function ScorerBoard({ config }) {
                         </div>
 
                         <div style={{ marginBottom: '1rem', opacity: 0.5 }}>
-                            <p>Scorer: {matchState.officials?.scorer}</p>
-                            <p>Umpires: {matchState.officials?.umpires || 'None'}</p>
+                            <p>Scorer: {matchState.officials?.scorer || matchState.scorerName}</p>
+                            <p>Umpires: {[matchState.officials?.umpires?.umpire1, matchState.officials?.umpires?.umpire2].filter(Boolean).join(', ') || 'None'}</p>
                         </div>
 
                         <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>{matchState.battingTeam.name} Batting</h3>
@@ -362,7 +376,7 @@ function ScorerBoard({ config }) {
                             {Object.entries(matchState.scorecard.batting).map(([name, stats]) => (
                                 <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.9rem' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontWeight: 600 }}>{name}</span>
+                                        <span style={{ fontWeight: 600 }}>{getPlayerDisplayName(name, 'batting')}</span>
                                         <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{stats.dismissal || 'not out'}</span>
                                     </div>
                                     <span>{stats.runs}</span><span>{stats.balls}</span><span>{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0'}</span>

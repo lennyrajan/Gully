@@ -17,15 +17,21 @@ export default function MatchSetup() {
     const router = useRouter();
     const [step, setStep] = useState(1);
     const [matchConfig, setMatchConfig] = useState({
-        teamA: { name: 'PVCC', players: Array(11).fill(''), impactPlayer: '' },
-        teamB: { name: 'SVCC', players: Array(11).fill(''), impactPlayer: '' },
+        teamA: { name: 'PVCC', players: Array(11).fill(''), impactPlayer: '', captain: null, viceCaptain: null, wicketKeeper: null },
+        teamB: { name: 'SVCC', players: Array(11).fill(''), impactPlayer: '', captain: null, viceCaptain: null, wicketKeeper: null },
         maxOvers: 20,
         maxWickets: 11,
         scorerName: 'Lenny Rajan',
-        umpires: ''
+        umpires: { umpire1: '', umpire2: '' }
     });
 
-    const [tossResult, setTossResult] = useState({ winner: '', choice: '' }); // winner: 'teamA' or 'teamB', choice: 'bat' or 'bowl'
+    const [tossResult, setTossResult] = useState({
+        callingTeam: '', // 'teamA' or 'teamB'
+        call: '', // 'heads' or 'tails'
+        outcome: '', // 'heads' or 'tails'
+        winner: '',
+        choice: ''
+    });
     const [isFlipping, setIsFlipping] = useState(false);
     const [savedTeams, setSavedTeams] = useState({});
 
@@ -51,21 +57,47 @@ export default function MatchSetup() {
         }));
     };
 
+    const handleRoleChange = (team, role, index) => {
+        setMatchConfig(prev => ({
+            ...prev,
+            [team]: {
+                ...prev[team],
+                [role]: prev[team][role] === index ? null : index
+            }
+        }));
+    };
+
     const loadSavedTeam = (teamKey, targetTeam) => {
-        const players = savedTeams[teamKey];
-        if (players) {
+        const teamData = savedTeams[teamKey];
+        if (teamData) {
+            // Support both old array-only format and new object format
+            const players = Array.isArray(teamData) ? teamData : teamData.players;
             setMatchConfig(prev => ({
                 ...prev,
-                [targetTeam]: { ...prev[targetTeam], players: [...players] }
+                [targetTeam]: {
+                    ...prev[targetTeam],
+                    players: [...players],
+                    captain: teamData.captain ?? null,
+                    viceCaptain: teamData.viceCaptain ?? null,
+                    wicketKeeper: teamData.wicketKeeper ?? null
+                }
             }));
         }
     };
 
-    const saveTeam = (name, players) => {
-        if (!name || players.some(p => !p.trim())) return;
+    const saveTeam = (name, teamData) => {
+        if (!name || teamData.players.some(p => !p.trim())) return;
         const date = new Date().toISOString().split('T')[0];
         const key = `${name}_${date}`;
-        const newSavedTeams = { ...savedTeams, [key]: players };
+        const newSavedTeams = {
+            ...savedTeams,
+            [key]: {
+                players: teamData.players,
+                captain: teamData.captain,
+                viceCaptain: teamData.viceCaptain,
+                wicketKeeper: teamData.wicketKeeper
+            }
+        };
         setSavedTeams(newSavedTeams);
         localStorage.setItem('savedTeams', JSON.stringify(newSavedTeams));
     };
@@ -75,10 +107,16 @@ export default function MatchSetup() {
     };
 
     const runToss = () => {
+        if (!tossResult.callingTeam || !tossResult.call) {
+            alert('Please select who is calling and their call (Heads/Tails).');
+            return;
+        }
+
         setIsFlipping(true);
         setTimeout(() => {
-            const winner = Math.random() > 0.5 ? 'teamA' : 'teamB';
-            setTossResult({ winner, choice: '' });
+            const outcome = Math.random() > 0.5 ? 'heads' : 'tails';
+            const winner = tossResult.call === outcome ? tossResult.callingTeam : (tossResult.callingTeam === 'teamA' ? 'teamB' : 'teamA');
+            setTossResult(prev => ({ ...prev, outcome, winner }));
             setIsFlipping(false);
         }, 1500);
     };
@@ -90,8 +128,8 @@ export default function MatchSetup() {
         }
 
         // Save teams for reuse before starting
-        saveTeam(matchConfig.teamA.name, matchConfig.teamA.players);
-        saveTeam(matchConfig.teamB.name, matchConfig.teamB.players);
+        saveTeam(matchConfig.teamA.name, matchConfig.teamA);
+        saveTeam(matchConfig.teamB.name, matchConfig.teamB);
 
         // Determine who bats first based on toss
         let finalConfig = { ...matchConfig };
@@ -195,6 +233,30 @@ export default function MatchSetup() {
                                         />
                                     </div>
                                 </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Umpire 1</label>
+                                        <input
+                                            type="text"
+                                            value={matchConfig.umpires.umpire1}
+                                            placeholder="Optional"
+                                            onChange={(e) => setMatchConfig({ ...matchConfig, umpires: { ...matchConfig.umpires, umpire1: e.target.value } })}
+                                            className="input-field"
+                                            style={{ width: '100%', padding: '1rem', background: 'var(--background)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'var(--foreground)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Umpire 2</label>
+                                        <input
+                                            type="text"
+                                            value={matchConfig.umpires.umpire2}
+                                            placeholder="Optional"
+                                            onChange={(e) => setMatchConfig({ ...matchConfig, umpires: { ...matchConfig.umpires, umpire2: e.target.value } })}
+                                            className="input-field"
+                                            style={{ width: '100%', padding: '1rem', background: 'var(--background)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'var(--foreground)' }}
+                                        />
+                                    </div>
+                                </div>
                                 <div style={{ marginTop: '1rem' }}>
                                     <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Scorer Name</label>
                                     <input
@@ -236,8 +298,8 @@ export default function MatchSetup() {
                             </div>
                             <div className="card" style={{ padding: '1rem' }}>
                                 {matchConfig[step === 2 ? 'teamA' : 'teamB'].players.map((player, idx) => (
-                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                                        <span style={{ fontSize: '0.75rem', opacity: 0.4, width: '20px' }}>{idx + 1}</span>
+                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                        <span style={{ fontSize: '0.75rem', opacity: 0.4, width: '18px' }}>{idx + 1}</span>
                                         <input
                                             type="text"
                                             placeholder={`Player Name`}
@@ -245,6 +307,31 @@ export default function MatchSetup() {
                                             onChange={(e) => handlePlayerChange(step === 2 ? 'teamA' : 'teamB', idx, e.target.value)}
                                             style={{ flex: 1, padding: '0.75rem', background: 'transparent', border: 'none', borderBottom: '1px solid var(--card-border)', color: 'var(--foreground)' }}
                                         />
+                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                            {['captain', 'viceCaptain', 'wicketKeeper'].map((role) => {
+                                                const label = role === 'captain' ? 'C' : role === 'viceCaptain' ? 'VC' : 'WK';
+                                                const isActive = matchConfig[step === 2 ? 'teamA' : 'teamB'][role] === idx;
+                                                return (
+                                                    <button
+                                                        key={role}
+                                                        onClick={() => handleRoleChange(step === 2 ? 'teamA' : 'teamB', role, idx)}
+                                                        style={{
+                                                            padding: '0.25rem 0.5rem',
+                                                            borderRadius: '4px',
+                                                            fontSize: '0.65rem',
+                                                            fontWeight: 800,
+                                                            background: isActive ? 'var(--primary)' : 'var(--card-border)',
+                                                            color: isActive ? 'white' : 'var(--foreground)',
+                                                            opacity: isActive ? 1 : 0.3,
+                                                            border: 'none',
+                                                            cursor: 'pointer'
+                                                        }}
+                                                    >
+                                                        {label}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 ))}
                                 <div style={{ marginTop: '1rem', borderTop: '1px dashed var(--card-border)', paddingTop: '1rem' }}>
@@ -273,6 +360,38 @@ export default function MatchSetup() {
                         <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} style={{ textAlign: 'center' }}>
                             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '2rem' }}>Coin Toss</h2>
 
+                            <div className="card" style={{ marginBottom: '2rem', textAlign: 'left' }}>
+                                <label style={{ fontSize: '0.75rem', opacity: 0.5, display: 'block', marginBottom: '1rem' }}>WHO IS CALLING?</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                                    {['teamA', 'teamB'].map(t => (
+                                        <button
+                                            key={t}
+                                            className={`btn ${tossResult.callingTeam === t ? 'btn-primary' : ''}`}
+                                            onClick={() => setTossResult({ ...tossResult, callingTeam: t, winner: '', outcome: '' })}
+                                            style={{ padding: '0.75rem', border: '1px solid var(--card-border)' }}
+                                            disabled={isFlipping}
+                                        >
+                                            {matchConfig[t].name}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <label style={{ fontSize: '0.75rem', opacity: 0.5, display: 'block', marginBottom: '1rem' }}>THE CALL</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    {['heads', 'tails'].map(c => (
+                                        <button
+                                            key={c}
+                                            className={`btn ${tossResult.call === c ? 'btn-primary' : ''}`}
+                                            onClick={() => setTossResult({ ...tossResult, call: c, winner: '', outcome: '' })}
+                                            style={{ padding: '0.75rem', border: '1px solid var(--card-border)' }}
+                                            disabled={isFlipping}
+                                        >
+                                            {c.toUpperCase()}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
                             <div style={{ position: 'relative', height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2rem' }}>
                                 <motion.div
                                     animate={isFlipping ? {
@@ -281,21 +400,25 @@ export default function MatchSetup() {
                                     } : { rotateY: 0, y: 0 }}
                                     transition={{ duration: 1.5, ease: "easeInOut" }}
                                     style={{
-                                        width: '80px',
-                                        height: '80px',
+                                        width: '100px',
+                                        height: '100px',
                                         borderRadius: '50%',
                                         background: 'linear-gradient(45deg, #ffd700, #ff8c00)',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         color: 'white',
-                                        fontSize: '1.5rem',
+                                        fontSize: '2rem',
                                         fontWeight: 900,
                                         boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
-                                        border: '4px solid rgba(255,255,255,0.3)'
+                                        border: '4px solid rgba(255,255,255,0.3)',
+                                        position: 'relative',
+                                        transformStyle: 'preserve-3d'
                                     }}
                                 >
-                                    {isFlipping ? '?' : 'G'}
+                                    <span style={{ backfaceVisibility: 'hidden' }}>
+                                        {tossResult.outcome ? tossResult.outcome[0].toUpperCase() : (tossResult.call ? tossResult.call[0].toUpperCase() : 'G')}
+                                    </span>
                                 </motion.div>
                             </div>
 
@@ -308,7 +431,8 @@ export default function MatchSetup() {
                             {tossResult.winner && !isFlipping && (
                                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                     <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1.5rem', borderRadius: '16px', marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
-                                        <p style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                                        <p style={{ opacity: 0.6, fontSize: '0.875rem' }}>It's {tossResult.outcome.toUpperCase()}!</p>
+                                        <p style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '0.5rem' }}>
                                             {matchConfig[tossResult.winner].name} WON the toss!
                                         </p>
                                     </div>

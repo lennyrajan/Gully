@@ -22,7 +22,7 @@ export const useScorer = (initialState = {}) => {
         bowlingTeam: initialState.teamB || { name: 'Opponent', players: [] },
         officials: {
             scorer: initialState.scorerName || '',
-            umpires: initialState.umpires || ''
+            umpires: initialState.umpires || { umpire1: '', umpire2: '' }
         },
         scorecard: {
             batting: {},
