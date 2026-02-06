@@ -313,6 +313,7 @@ export const useScorer = (initialState = {}) => {
                     if (runs === 6) currentBatter.sixes += 1;
 
                     currentBowler.runs += runs + 1; // Bowler concedes runs + penalty
+                    currentBowler.noBalls = (currentBowler.noBalls || 0) + 1;
                     newState.overRuns += runs + 1;
                     newState.ballsLog = [...prev.ballsLog, runs > 0 ? `${runs}NB` : 'NB'];
 
@@ -329,6 +330,7 @@ export const useScorer = (initialState = {}) => {
                     // Batsman does NOT face the ball on a wide
                     // But can score runs if they run
                     currentBowler.runs += runs + 1; // Bowler concedes all
+                    currentBowler.wides = (currentBowler.wides || 0) + 1;
                     newState.overRuns += runs + 1;
                     newState.ballsLog = [...prev.ballsLog, runs > 0 ? `${runs}Wd` : 'Wd'];
 
@@ -512,6 +514,11 @@ export const useScorer = (initialState = {}) => {
                 newState.isPaused = true;
                 newState.pauseReason = 'INNINGS_COMPLETE';
                 newState.bowler = null;
+
+                // Check for full match completion
+                if (isSecondInnings) {
+                    newState.isMatchFinished = true;
+                }
             }
 
             // 4. Publish Match Event for Live Feeds

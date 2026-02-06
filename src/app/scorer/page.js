@@ -6,6 +6,7 @@ import { useScorer } from '@/hooks/useScorer';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { getResourcePercentage, calculateRevisedTarget } from '@/lib/dls';
+import { calculateMVPs } from '@/lib/mvp';
 import {
     ChevronLeft,
     RotateCcw,
@@ -78,6 +79,9 @@ function ScorerBoard({ config }) {
     const [showDLSModal, setShowDLSModal] = useState(false);
     const [showTransferModal, setShowTransferModal] = useState(false);
     const [showBowlerChangeModal, setShowBowlerChangeModal] = useState(false);
+    const [showMatchSummary, setShowMatchSummary] = useState(false);
+    const [selectedPOTM, setSelectedPOTM] = useState(null);
+    const [mvps, setMvps] = useState([]);
     const [transferCode, setTransferCode] = useState(null);
 
     // DLS Modal State
@@ -151,6 +155,17 @@ function ScorerBoard({ config }) {
         setShowFielderModal(false);
     };
 
+    useEffect(() => {
+        if (matchState.isMatchFinished && !showMatchSummary) {
+            const calculatedMvps = calculateMVPs(matchState.scorecard);
+            setMvps(calculatedMvps);
+            if (calculatedMvps.length > 0) {
+                setSelectedPOTM(calculatedMvps[0].name);
+            }
+            setShowMatchSummary(true);
+        }
+    }, [matchState.isMatchFinished, matchState.scorecard, showMatchSummary]);
+
     const handleStrikeChoice = (isNewBatterStriker) => {
         const survivor = isStrikerOutChoice ? matchState.nonStriker : matchState.striker;
         if (isNewBatterStriker) {
@@ -198,6 +213,8 @@ function ScorerBoard({ config }) {
             try {
                 await updateDoc(doc(db, 'matches', matchState.matchId), {
                     status: 'FINISHED',
+                    playerOfTheMatch: selectedPOTM,
+                    mvpRankings: mvps,
                     lastUpdated: new Date().toISOString()
                 });
             } catch (error) {
@@ -1325,6 +1342,126 @@ function ScorerBoard({ config }) {
                                 <button className="btn" onClick={() => setShowFielderModal(false)} style={{ background: 'transparent', border: '1px solid var(--card-border)' }}>Cancel</button>
                             </div>
                         </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Match Summary & POTM Modal */}
+            <AnimatePresence>
+                {showMatchSummary && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.98)',
+                            backdropFilter: 'blur(15px)',
+                            zIndex: 8000,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            color: 'white',
+                            padding: '2rem'
+                        }}
+                    >
+                        <div style={{ textAlign: 'center', marginBottom: '2rem', marginTop: '1rem' }}>
+                            <Trophy size={64} color="#fbbf24" style={{ margin: '0 auto 1.5rem' }} />
+                            <h2 style={{ fontSize: '2.5rem', fontWeight: 900 }}>Match Finished!</h2>
+                            <p style={{ fontSize: '1.25rem', opacity: 0.8, color: 'var(--primary)', fontWeight: 700, marginTop: '0.5rem' }}>
+                                {(() => {
+                                    const team1 = matchState.completedInnings?.[0];
+                                    const team2Runs = matchState.totalRuns;
+                                    const target = team1 ? team1.totalRuns + 1 : 0;
+                                    if (team2Runs >= target) {
+                                        const wicketsLeft = (matchState.maxWickets || 10) - matchState.wickets;
+                                        return `${matchState.battingTeam.name} won by ${wicketsLeft} wicket${wicketsLeft > 1 ? 's' : ''}`;
+                                    } else {
+                                        const runsDiff = target - team2Runs - 1;
+                                        return `${matchState.bowlingTeam.name} won by ${runsDiff} run${runsDiff > 1 ? 's' : ''}`;
+                                    }
+                                })()}
+                            </p>
+                        </div>
+
+                        <div style={{ flex: 1, overflowY: 'auto', maxWidth: '500px', width: '100%', margin: '0 auto' }}>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '2px', marginBottom: '1.5rem', textAlign: 'center', opacity: 0.6 }}>Top Performances (MVPs)</h3>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                {mvps.slice(0, 4).map((m, idx) => (
+                                    <motion.div
+                                        key={m.name}
+                                        initial={{ x: -20, opacity: 0 }}
+                                        animate={{ x: 0, opacity: 1 }}
+                                        transition={{ delay: 0.2 + (idx * 0.1) }}
+                                        onClick={() => setSelectedPOTM(m.name)}
+                                        style={{
+                                            padding: '1.25rem',
+                                            background: selectedPOTM === m.name ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+                                            borderRadius: '16px',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            border: selectedPOTM === m.name ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                                            cursor: 'pointer',
+                                            boxShadow: selectedPOTM === m.name ? '0 10px 20px rgba(59, 130, 246, 0.3)' : 'none'
+                                        }}
+                                    >
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                            <div style={{
+                                                width: '40px',
+                                                height: '40px',
+                                                borderRadius: '50%',
+                                                background: idx === 0 ? '#fbbf24' : idx === 1 ? '#94a2b8' : idx === 2 ? '#92400e' : 'rgba(255,255,255,0.2)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                fontWeight: 900,
+                                                color: idx < 3 ? 'black' : 'white'
+                                            }}>
+                                                {idx + 1}
+                                            </div>
+                                            <div>
+                                                <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{m.name}</p>
+                                                <p style={{ fontSize: '0.8rem', opacity: 0.6 }}>MVP Points: {m.points}</p>
+                                            </div>
+                                        </div>
+                                        {selectedPOTM === m.name && (
+                                            <div style={{ background: 'white', color: 'var(--primary)', padding: '4px 10px', borderRadius: '20px', fontSize: '0.7rem', fontWeight: 900 }}>POTM</div>
+                                        )}
+                                    </motion.div>
+                                ))}
+                            </div>
+
+                            <div style={{ marginTop: '2.5rem', background: 'rgba(59, 130, 246, 0.1)', padding: '1.5rem', borderRadius: '16px', border: '1px dashed var(--primary)', textAlign: 'center' }}>
+                                <p style={{ fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.75rem' }}>Selected Player of the Match</p>
+                                <p style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--primary)' }}>{selectedPOTM || 'None'}</p>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', maxWidth: '500px', width: '100%', margin: '2rem auto 0' }}>
+                            <button
+                                className="btn"
+                                style={{ flex: 1, padding: '1.25rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                                onClick={() => {
+                                    setShowMatchSummary(false);
+                                    undo(); // Allow correction
+                                }}
+                            >
+                                Undo Last
+                            </button>
+                            <button
+                                className="btn btn-primary"
+                                style={{ flex: 2, padding: '1.25rem', fontSize: '1.1rem', fontWeight: 800 }}
+                                onClick={() => {
+                                    if (confirm(`Finalize match with ${selectedPOTM} as Player of the Match?`)) {
+                                        finalizeMatch();
+                                    }
+                                }}
+                            >
+                                Finalize & Sync
+                            </button>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
