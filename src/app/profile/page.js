@@ -273,15 +273,6 @@ export default function PlayerProfile() {
                             </div>
                         </>
                     )}
-
-                    <h3 style={{ fontSize: '1rem', fontWeight: 700, opacity: 0.5, marginBottom: '1rem', textTransform: 'uppercase' }}>
-                        League Breakdown
-                    </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <LeagueItem name="NCCA Premier" runs="1,240" wkts="42" avg="31.0" color="#ef4444" />
-                        <LeagueItem name="BACA Sunday T20" runs="840" wkts="30" avg="42.5" color="#3b82f6" />
-                        <LeagueItem name="Gully Club Internal" runs="402" wkts="12" avg="28.1" color="#10b981" />
-                    </div>
                 </div>
             </main>
         </ProtectedRoute>
