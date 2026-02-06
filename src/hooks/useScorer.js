@@ -14,19 +14,30 @@ export const useScorer = (initialState = {}) => {
             legByes: 0
         },
         maxOvers: initialState.maxOvers || 20,
-        striker: initialState.teamA?.players[0] || 'Batter 1',
-        nonStriker: initialState.teamA?.players[1] || 'Batter 2',
-        bowler: 'Bowler 1',
+        maxWickets: initialState.maxWickets || 11,
+        striker: null,
+        nonStriker: null,
+        bowler: null,
         battingTeam: initialState.teamA || { name: 'PVCC', players: [] },
         bowlingTeam: initialState.teamB || { name: 'Opponent', players: [] },
-        scorecard: {
-            batting: {}, // { playerName: { runs: 0, balls: 0, 4s: 0, 6s: 0, dismissal: '' } }
-            bowling: {}  // { playerName: { overs: 0, runs: 0, wickets: 0 } }
+        officials: {
+            scorer: initialState.scorerName || '',
+            umpires: initialState.umpires || ''
         },
-        history: [], // For undo functionality
-        ballsLog: [], // For feedback (e.g., [0, 1, 'W', 4, 0, 6])
+        scorecard: {
+            batting: {},
+            bowling: {}
+        },
+        history: [],
+        ballsLog: [],
+        isPaused: true, // For selection prompts
+        pauseReason: 'INIT', // INIT, WICKET, OVER
         ...initialState
     });
+
+    const setStriker = (name) => setMatchState(prev => ({ ...prev, striker: name, isPaused: !prev.nonStriker || !prev.bowler }));
+    const setNonStriker = (name) => setMatchState(prev => ({ ...prev, nonStriker: name, isPaused: !prev.striker || !prev.bowler }));
+    const setBowler = (name) => setMatchState(prev => ({ ...prev, bowler: name, isPaused: !prev.striker || !prev.nonStriker, ballsLog: [] }));
 
     const overs = useMemo(() => {
         const fullOvers = Math.floor(matchState.balls / 6);
@@ -36,9 +47,10 @@ export const useScorer = (initialState = {}) => {
 
     const addBall = useCallback((ballData) => {
         setMatchState(prev => {
-            // Check if innings already ended
+            if (prev.isPaused) return prev;
+
             const fullOvers = Math.floor(prev.balls / 6);
-            if (fullOvers >= prev.maxOvers) return prev;
+            if (fullOvers >= prev.maxOvers || prev.wickets >= prev.maxWickets) return prev;
 
             const newState = {
                 ...prev,
@@ -108,25 +120,24 @@ export const useScorer = (initialState = {}) => {
                 currentBatter.dismissal = dismissalText;
                 newState.ballsLog = [...newState.ballsLog.slice(0, -1), 'W'];
 
-                // Handle Batter replacement - would normally open a modal, 
-                // but for now we'll just move to next in list if available
-                const nextBatterIndex = newState.battingTeam.players.findIndex(p => p && !newState.scorecard.batting[p]);
-                if (nextBatterIndex !== -1) {
-                    newState.striker = newState.battingTeam.players[nextBatterIndex];
+                if (newState.wickets < newState.maxWickets) {
+                    newState.isPaused = true;
+                    newState.pauseReason = 'WICKET';
+                    newState.striker = null;
                 }
             }
 
-            // Update bowler overs display
             const bOvers = Math.floor(currentBowler.balls / 6);
             const bBalls = currentBowler.balls % 6;
             currentBowler.overs = `${bOvers}.${bBalls}`;
 
-            // 3. Strike Rotation
             const isLegalBall = !isExtra || (extraType !== 'wide' && extraType !== 'noBall');
             const isEndOfOver = isLegalBall && newState.balls % 6 === 0;
 
-            if (isEndOfOver) {
-                newState.ballsLog = []; // Reset visual log for new over
+            if (isEndOfOver && !newState.isPaused) {
+                newState.isPaused = true;
+                newState.pauseReason = 'OVER';
+                newState.bowler = null;
             }
 
             if ((runs % 2 !== 0 && !isWicket) || isEndOfOver) {
@@ -150,6 +161,9 @@ export const useScorer = (initialState = {}) => {
         matchState,
         overs,
         addBall,
-        undo
+        undo,
+        setStriker,
+        setNonStriker,
+        setBowler
     };
 };

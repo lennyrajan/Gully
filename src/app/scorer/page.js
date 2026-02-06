@@ -17,7 +17,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function ScorerPage() {
     const router = useRouter();
     const [config, setConfig] = useState(null);
-    const { matchState, overs, addBall, undo } = useScorer(config || {});
+    const {
+        matchState,
+        overs,
+        addBall,
+        undo,
+        setStriker,
+        setNonStriker,
+        setBowler
+    } = useScorer(config || {});
+
     const [showWicketModal, setShowWicketModal] = useState(false);
     const [showScorecard, setShowScorecard] = useState(false);
     const [selectedExtra, setSelectedExtra] = useState(null);
@@ -31,6 +40,7 @@ export default function ScorerPage() {
     }, []);
 
     const handleRunClick = (runs) => {
+        if (matchState.isPaused) return;
         addBall({
             runs,
             isExtra: !!selectedExtra,
@@ -63,6 +73,14 @@ export default function ScorerPage() {
         router.push('/profile');
     };
 
+    const getAvailableBatters = () => {
+        return matchState.battingTeam.players.filter(p => p !== matchState.striker && p !== matchState.nonStriker);
+    };
+
+    const getAvailableBowlers = () => {
+        return matchState.bowlingTeam.players.filter(p => p !== matchState.bowler);
+    };
+
     return (
         <main style={{
             height: '100vh',
@@ -71,6 +89,72 @@ export default function ScorerPage() {
             background: 'var(--background)',
             color: 'var(--foreground)'
         }}>
+            {/* Selection Modals Overlay */}
+            <AnimatePresence>
+                {matchState.isPaused && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'rgba(0,0,0,0.9)',
+                            backdropFilter: 'blur(10px)',
+                            zIndex: 3000,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            padding: '2rem'
+                        }}
+                    >
+                        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                            <Trophy size={48} color="var(--primary)" style={{ margin: '0 auto 1rem' }} />
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>
+                                {matchState.pauseReason === 'INIT' ? 'Game Start Setup' :
+                                    matchState.pauseReason === 'WICKET' ? 'New Batter Selection' :
+                                        'New Bowler Selection'}
+                            </h2>
+                            <p style={{ opacity: 0.6 }}>Please select the required player to continue</p>
+                        </div>
+
+                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            {(!matchState.striker || matchState.pauseReason === 'WICKET') && (
+                                <div>
+                                    <label style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.75rem', display: 'block' }}>Select Striker</label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                        {getAvailableBatters().map(p => (
+                                            <button key={p} className="btn" style={{ background: 'var(--card-bg)', padding: '1rem' }} onClick={() => setStriker(p)}>{p || 'Unfinished Name'}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {(!matchState.nonStriker && matchState.pauseReason === 'INIT') && (
+                                <div>
+                                    <label style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.75rem', display: 'block' }}>Select Non-Striker</label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                        {getAvailableBatters().map(p => (
+                                            <button key={p} className="btn" style={{ background: 'var(--card-bg)', padding: '1rem' }} onClick={() => setNonStriker(p)}>{p}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {(!matchState.bowler || matchState.pauseReason === 'OVER' || matchState.pauseReason === 'INIT') && (
+                                <div>
+                                    <label style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.75rem', display: 'block' }}>Select Bowler</label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                        {getAvailableBowlers().map(p => (
+                                            <button key={p} className="btn" style={{ background: 'var(--primary)', color: 'white', padding: '1rem' }} onClick={() => setBowler(p)}>{p}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             {/* Top Header */}
             <header style={{
                 padding: '1rem',
@@ -90,7 +174,7 @@ export default function ScorerPage() {
                     <button className="btn" style={{ padding: '0.5rem' }} onClick={() => setShowScorecard(true)}>
                         <Info size={20} />
                     </button>
-                    {(Math.floor(matchState.balls / 6) >= matchState.maxOvers || matchState.wickets >= 10) && (
+                    {(Math.floor(matchState.balls / 6) >= matchState.maxOvers || matchState.wickets >= matchState.maxWickets) && (
                         <button className="btn" style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem 1rem' }} onClick={finalizeMatch}>
                             Finish
                         </button>
@@ -106,7 +190,8 @@ export default function ScorerPage() {
                 justifyContent: 'center',
                 alignItems: 'center',
                 padding: '2rem',
-                position: 'relative'
+                position: 'relative',
+                opacity: matchState.isPaused ? 0.3 : 1
             }}>
                 <motion.div
                     key={matchState.totalRuns + '-' + matchState.balls}
@@ -122,37 +207,15 @@ export default function ScorerPage() {
                     </p>
                 </motion.div>
 
-                {/* Ball by Ball Log (Feedback for dots) */}
-                <div style={{
-                    marginTop: '2rem',
-                    display: 'flex',
-                    gap: '0.5rem',
-                    height: '40px',
-                    alignItems: 'center'
-                }}>
+                {/* Ball by Ball Log */}
+                <div style={{ marginTop: '2rem', display: 'flex', gap: '0.5rem', height: '40px', alignItems: 'center' }}>
                     {matchState.ballsLog.map((b, i) => (
-                        <motion.div
-                            key={i}
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '50%',
-                                background: b === '•' ? 'var(--card-border)' : b === 'W' ? 'var(--error)' : 'var(--primary)',
-                                color: 'white',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '0.75rem',
-                                fontWeight: 800
-                            }}
-                        >
+                        <motion.div key={i} initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ width: '32px', height: '32px', borderRadius: '50%', background: b === '•' ? 'var(--card-border)' : b === 'W' ? 'var(--error)' : 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 800 }}>
                             {b}
                         </motion.div>
                     ))}
-                    {matchState.ballsLog.length === 0 && (
-                        <p style={{ opacity: 0.3, fontSize: '0.875rem' }}>Beginning of over...</p>
+                    {matchState.ballsLog.length === 0 && !matchState.isPaused && (
+                        <p style={{ opacity: 0.3, fontSize: '0.875rem' }}>New over by {matchState.bowler}...</p>
                     )}
                 </div>
 
@@ -169,16 +232,16 @@ export default function ScorerPage() {
                 }}>
                     <div style={{ textAlign: 'center' }}>
                         <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Striker</p>
-                        <p style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>{matchState.striker}*</p>
+                        <p style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>{matchState.striker || '?'}</p>
                         <p style={{ fontSize: '0.75rem', opacity: 0.6 }}>
-                            {matchState.scorecard.batting[matchState.striker]?.runs || 0}({matchState.scorecard.batting[matchState.striker]?.balls || 0})
+                            {matchState.striker ? `${matchState.scorecard.batting[matchState.striker]?.runs || 0}(${matchState.scorecard.batting[matchState.striker]?.balls || 0})` : '-'}
                         </p>
                     </div>
                     <div style={{ textAlign: 'center', opacity: 0.7 }}>
                         <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Non-Striker</p>
-                        <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>{matchState.nonStriker}</p>
+                        <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>{matchState.nonStriker || '?'}</p>
                         <p style={{ fontSize: '0.75rem', opacity: 0.6 }}>
-                            {matchState.scorecard.batting[matchState.nonStriker]?.runs || 0}({matchState.scorecard.batting[matchState.nonStriker]?.balls || 0})
+                            {matchState.nonStriker ? `${matchState.scorecard.batting[matchState.nonStriker]?.runs || 0}(${matchState.scorecard.batting[matchState.nonStriker]?.balls || 0})` : '-'}
                         </p>
                     </div>
                 </div>
@@ -193,93 +256,35 @@ export default function ScorerPage() {
                 display: 'flex',
                 flexDirection: 'column',
                 gap: '1.5rem',
-                boxShadow: '0 -10px 25px rgba(0,0,0,0.1)'
+                boxShadow: '0 -10px 25px rgba(0,0,0,0.1)',
+                opacity: matchState.isPaused ? 0.5 : 1,
+                pointerEvents: matchState.isPaused ? 'none' : 'auto'
             }}>
                 <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
                     {['wide', 'noBall', 'bye', 'legBye'].map(type => (
-                        <button
-                            key={type}
-                            onClick={() => setSelectedExtra(selectedExtra === type ? null : type)}
-                            style={{
-                                padding: '0.5rem 1rem',
-                                borderRadius: '50px',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                                border: '2px solid',
-                                borderColor: selectedExtra === type ? 'var(--primary)' : 'var(--card-border)',
-                                background: selectedExtra === type ? 'var(--primary)' : 'transparent',
-                                color: selectedExtra === type ? 'white' : 'var(--foreground)',
-                                transition: 'all 0.2s'
-                            }}
-                        >
+                        <button key={type} onClick={() => setSelectedExtra(selectedExtra === type ? null : type)} style={{ padding: '0.5rem 1rem', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 700, border: '2px solid', borderColor: selectedExtra === type ? 'var(--primary)' : 'var(--card-border)', background: selectedExtra === type ? 'var(--primary)' : 'transparent', color: selectedExtra === type ? 'white' : 'var(--foreground)', transition: 'all 0.2s' }}>
                             {type.toUpperCase()}
                         </button>
                     ))}
                 </div>
 
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(4, 1fr)',
-                    gap: '1rem'
-                }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
                     {[0, 1, 2, 3, 4, 6].map(run => (
-                        <button
-                            key={run}
-                            onClick={() => handleRunClick(run)}
-                            className="btn"
-                            style={{
-                                height: '70px',
-                                fontSize: '1.5rem',
-                                borderRadius: 'var(--radius-md)',
-                                background: run === 4 || run === 6 ? 'var(--accent)' : 'var(--card-border)',
-                                color: 'white',
-                                fontWeight: 800
-                            }}
-                        >
+                        <button key={run} onClick={() => handleRunClick(run)} className="btn" style={{ height: '70px', fontSize: '1.5rem', borderRadius: 'var(--radius-md)', background: run === 4 || run === 6 ? 'var(--accent)' : 'var(--card-border)', color: 'white', fontWeight: 800 }}>
                             {run}
                         </button>
                     ))}
-
-                    <button
-                        className="btn"
-                        onClick={() => setShowWicketModal(true)}
-                        style={{
-                            gridColumn: 'span 2',
-                            background: 'var(--error)',
-                            color: 'white',
-                            height: '70px',
-                            fontSize: '1.25rem',
-                            fontWeight: 800
-                        }}
-                    >
+                    <button className="btn" onClick={() => setShowWicketModal(true)} style={{ gridColumn: 'span 2', background: 'var(--error)', color: 'white', height: '70px', fontSize: '1.25rem', fontWeight: 800 }}>
                         <XOctagon style={{ marginRight: '0.5rem' }} /> WICKET
                     </button>
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '2rem' }}>
-                    <button onClick={undo} style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--foreground)',
-                        opacity: 0.5,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        fontSize: '0.75rem'
-                    }}>
+                    <button onClick={undo} style={{ background: 'none', border: 'none', color: 'var(--foreground)', opacity: 0.5, display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: '0.75rem' }}>
                         <RotateCcw size={24} />
                         <span style={{ marginTop: '0.25rem' }}>UNDO</span>
                     </button>
-                    <button onClick={() => setShowScorecard(true)} style={{
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--foreground)',
-                        opacity: 0.5,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        fontSize: '0.75rem'
-                    }}>
+                    <button onClick={() => setShowScorecard(true)} style={{ background: 'none', border: 'none', color: 'var(--foreground)', opacity: 0.5, display: 'flex', flexDirection: 'column', alignItems: 'center', fontSize: '0.75rem' }}>
                         <Settings2 size={24} />
                         <span style={{ marginTop: '0.25rem' }}>FULL CARD</span>
                     </button>
@@ -289,34 +294,21 @@ export default function ScorerPage() {
             {/* Scorecard Modal */}
             <AnimatePresence>
                 {showScorecard && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'var(--background)',
-                            zIndex: 2000,
-                            padding: '1.5rem',
-                            overflowY: 'auto'
-                        }}
-                    >
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'var(--background)', zIndex: 4000, padding: '1.5rem', overflowY: 'auto' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
                             <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Full Scorecard</h2>
                             <button className="btn" onClick={() => setShowScorecard(false)}><X /></button>
                         </div>
 
-                        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>
-                            {matchState.battingTeam.name} Batting
-                        </h3>
+                        <div style={{ marginBottom: '1rem', opacity: 0.5 }}>
+                            <p>Scorer: {matchState.officials?.scorer}</p>
+                            <p>Umpires: {matchState.officials?.umpires || 'None'}</p>
+                        </div>
 
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>{matchState.battingTeam.name} Batting</h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>
-                                <span>BATTER</span>
-                                <span>R</span>
-                                <span>B</span>
-                                <span>SR</span>
+                                <span>BATTER</span><span>R</span><span>B</span><span>SR</span>
                             </div>
                             {Object.entries(matchState.scorecard.batting).map(([name, stats]) => (
                                 <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.9rem' }}>
@@ -324,20 +316,17 @@ export default function ScorerPage() {
                                         <span style={{ fontWeight: 600 }}>{name}</span>
                                         <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{stats.dismissal || 'not out'}</span>
                                     </div>
-                                    <span>{stats.runs}</span>
-                                    <span>{stats.balls}</span>
-                                    <span>{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0'}</span>
+                                    <span>{stats.runs}</span><span>{stats.balls}</span><span>{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0'}</span>
                                 </div>
                             ))}
                         </div>
 
                         <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--card-bg)', borderRadius: '12px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: 800 }}>
-                                <span>TOTAL</span>
-                                <span>{matchState.totalRuns}/{matchState.wickets}</span>
+                                <span>TOTAL</span><span>{matchState.totalRuns}/{matchState.wickets}</span>
                             </div>
                             <p style={{ fontSize: '0.875rem', opacity: 0.6, marginTop: '0.5rem' }}>
-                                Extras: {matchState.totalRuns - Object.values(matchState.scorecard.batting).reduce((a, b) => a + b.runs, 0)}
+                                Extras: {Object.values(matchState.extras).reduce((a, b) => a + b, 0)}
                             </p>
                         </div>
                     </motion.div>
@@ -347,52 +336,15 @@ export default function ScorerPage() {
             {/* Wicket Modal */}
             <AnimatePresence>
                 {showWicketModal && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'rgba(0,0,0,0.8)',
-                            backdropFilter: 'blur(5px)',
-                            zIndex: 1000,
-                            display: 'flex',
-                            alignItems: 'flex-end'
-                        }}
-                    >
-                        <motion.div
-                            initial={{ y: '100%' }}
-                            animate={{ y: 0 }}
-                            exit={{ y: '100%' }}
-                            style={{
-                                width: '100%',
-                                background: 'var(--background)',
-                                borderTopLeftRadius: '2rem',
-                                borderTopRightRadius: '2rem',
-                                padding: '2rem'
-                            }}
-                        >
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', zIndex: 3500, display: 'flex', alignItems: 'flex-end' }}>
+                        <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={{ width: '100%', background: 'var(--background)', borderTopLeftRadius: '2rem', borderTopRightRadius: '2rem', padding: '2rem' }}>
                             <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Choose Wicket Type</h2>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                 {['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Other'].map(type => (
-                                    <button
-                                        key={type}
-                                        className="btn"
-                                        onClick={() => handleWicket(type)}
-                                        style={{ background: 'var(--card-border)', padding: '1.5rem' }}
-                                    >
-                                        {type}
-                                    </button>
+                                    <button key={type} className="btn" onClick={() => handleWicket(type)} style={{ background: 'var(--card-border)', padding: '1.5rem' }}>{type}</button>
                                 ))}
                             </div>
-                            <button
-                                className="btn"
-                                onClick={() => setShowWicketModal(false)}
-                                style={{ width: '100%', marginTop: '1.5rem', background: 'transparent', border: '1px solid var(--card-border)' }}
-                            >
-                                Cancel
-                            </button>
+                            <button className="btn" onClick={() => setShowWicketModal(false)} style={{ width: '100%', marginTop: '1.5rem', background: 'transparent', border: '1px solid var(--card-border)' }}>Cancel</button>
                         </motion.div>
                     </motion.div>
                 )}

@@ -17,9 +17,12 @@ export default function MatchSetup() {
     const router = useRouter();
     const [step, setStep] = useState(1);
     const [matchConfig, setMatchConfig] = useState({
-        teamA: { name: 'PVCC', players: Array(11).fill('').map((_, i) => i === 0 ? 'Lenny Rajan' : ''), impactPlayer: '' },
+        teamA: { name: 'PVCC', players: Array(11).fill(''), impactPlayer: '' },
         teamB: { name: 'SVCC', players: Array(11).fill(''), impactPlayer: '' },
-        maxOvers: 20
+        maxOvers: 20,
+        maxWickets: 11,
+        scorerName: 'Lenny Rajan',
+        umpires: ''
     });
 
     const handlePlayerChange = (team, index, value) => {
@@ -39,9 +42,22 @@ export default function MatchSetup() {
         }));
     };
 
+    const isSquadComplete = (team) => {
+        return matchConfig[team].players.every(p => p.trim() !== '');
+    };
+
     const startMatch = () => {
-        // In a real app, we'd save this to Firestore and get an ID
-        // For now, we'll pass via localStorage or state management if available
+        if (!isSquadComplete('teamA') || !isSquadComplete('teamB')) {
+            alert('Please fill in all 11 player names for both teams.');
+            setStep(2);
+            return;
+        }
+        if (!matchConfig.scorerName) {
+            alert('Scorer name is mandatory.');
+            setStep(1);
+            return;
+        }
+
         localStorage.setItem('currentMatchConfig', JSON.stringify(matchConfig));
         router.push('/scorer');
     };
@@ -53,7 +69,6 @@ export default function MatchSetup() {
             color: 'var(--foreground)',
             paddingBottom: '2rem'
         }}>
-            {/* Header */}
             <header className="glass" style={{
                 padding: '1.5rem',
                 display: 'flex',
@@ -70,7 +85,6 @@ export default function MatchSetup() {
             </header>
 
             <div style={{ padding: '1.5rem' }}>
-                {/* Progress Bar */}
                 <div style={{ display: 'flex', gap: '4px', marginBottom: '2rem' }}>
                     {[1, 2, 3].map(s => (
                         <div key={s} style={{
@@ -97,39 +111,58 @@ export default function MatchSetup() {
                                     <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Opponent Team Name</label>
                                     <input
                                         type="text"
+                                        placeholder="Enter Opponent Name"
                                         value={matchConfig.teamB.name}
                                         onChange={(e) => setMatchConfig({ ...matchConfig, teamB: { ...matchConfig.teamB, name: e.target.value } })}
-                                        style={{
-                                            width: '100%',
-                                            padding: '1rem',
-                                            background: 'var(--background)',
-                                            border: '1px solid var(--card-border)',
-                                            borderRadius: '12px',
-                                            color: 'var(--foreground)',
-                                            fontSize: '1rem'
-                                        }}
+                                        className="input-field"
+                                        style={{ width: '100%', padding: '1rem', background: 'var(--background)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'var(--foreground)' }}
+                                    />
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Match Overs (1-90)</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="90"
+                                            value={matchConfig.maxOvers}
+                                            onChange={(e) => setMatchConfig({ ...matchConfig, maxOvers: parseInt(e.target.value) || 20 })}
+                                            className="input-field"
+                                            style={{ width: '100%', padding: '1rem', background: 'var(--background)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'var(--foreground)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Wicket Limit</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            value={matchConfig.maxWickets}
+                                            onChange={(e) => setMatchConfig({ ...matchConfig, maxWickets: parseInt(e.target.value) || 11 })}
+                                            className="input-field"
+                                            style={{ width: '100%', padding: '1rem', background: 'var(--background)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'var(--foreground)' }}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Scorer Name (Mandatory)</label>
+                                    <input
+                                        type="text"
+                                        value={matchConfig.scorerName}
+                                        onChange={(e) => setMatchConfig({ ...matchConfig, scorerName: e.target.value })}
+                                        className="input-field"
+                                        style={{ width: '100%', padding: '1rem', background: 'var(--background)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'var(--foreground)' }}
                                     />
                                 </div>
                                 <div>
-                                    <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Match Format (Max Overs)</label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.5rem' }}>
-                                        {[10, 20, 40].map(overs => (
-                                            <button
-                                                key={overs}
-                                                onClick={() => setMatchConfig({ ...matchConfig, maxOvers: overs })}
-                                                style={{
-                                                    padding: '0.75rem',
-                                                    borderRadius: '10px',
-                                                    border: '1px solid var(--card-border)',
-                                                    background: matchConfig.maxOvers === overs ? 'var(--primary)' : 'transparent',
-                                                    color: matchConfig.maxOvers === overs ? 'white' : 'inherit',
-                                                    fontWeight: 600
-                                                }}
-                                            >
-                                                {overs} Overs
-                                            </button>
-                                        ))}
-                                    </div>
+                                    <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Umpires (comma separated, optional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Umpire A, Umpire B"
+                                        value={matchConfig.umpires}
+                                        onChange={(e) => setMatchConfig({ ...matchConfig, umpires: e.target.value })}
+                                        className="input-field"
+                                        style={{ width: '100%', padding: '1rem', background: 'var(--background)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'var(--foreground)' }}
+                                    />
                                 </div>
                             </div>
                             <button className="btn btn-primary" style={{ width: '100%', marginTop: '2rem', padding: '1rem' }} onClick={() => setStep(2)}>
@@ -147,53 +180,45 @@ export default function MatchSetup() {
                         >
                             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>Squad Selection</h2>
 
-                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                                <button className="btn" style={{ flex: 1, background: 'var(--primary)', color: 'white' }}>{matchConfig.teamA.name}</button>
-                                <button className="btn" style={{ flex: 1, background: 'var(--card-border)' }}>{matchConfig.teamB.name}</button>
-                            </div>
-
-                            <div className="card" style={{ maxHeight: '50vh', overflowY: 'auto', padding: '1rem' }}>
-                                {matchConfig.teamA.players.map((player, idx) => (
-                                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                                        <span style={{ fontSize: '0.75rem', opacity: 0.4, width: '20px' }}>{idx + 1}</span>
-                                        <input
-                                            type="text"
-                                            placeholder={`Player ${idx + 1} Name`}
-                                            value={player}
-                                            onChange={(e) => handlePlayerChange('teamA', idx, e.target.value)}
-                                            style={{
-                                                flex: 1,
-                                                padding: '0.75rem',
-                                                background: 'transparent',
-                                                border: 'none',
-                                                borderBottom: '1px solid var(--card-border)',
-                                                color: 'var(--foreground)'
-                                            }}
-                                        />
+                            {[
+                                { id: 'teamA', name: matchConfig.teamA.name },
+                                { id: 'teamB', name: matchConfig.teamB.name }
+                            ].map(team => (
+                                <div key={team.id} style={{ marginBottom: '2rem' }}>
+                                    <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--primary)' }}>{team.name} Squad</h3>
+                                    <div className="card" style={{ padding: '1rem' }}>
+                                        {matchConfig[team.id].players.map((player, idx) => (
+                                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                                                <span style={{ fontSize: '0.75rem', opacity: 0.4, width: '20px' }}>{idx + 1}</span>
+                                                <input
+                                                    type="text"
+                                                    placeholder={`Player ${idx + 1} Name`}
+                                                    value={player}
+                                                    onChange={(e) => handlePlayerChange(team.id, idx, e.target.value)}
+                                                    style={{ flex: 1, padding: '0.75rem', background: 'transparent', border: 'none', borderBottom: '1px solid var(--card-border)', color: 'var(--foreground)' }}
+                                                />
+                                            </div>
+                                        ))}
+                                        <div style={{ marginTop: '1rem', borderTop: '1px dashed var(--card-border)', paddingTop: '1rem' }}>
+                                            <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.5, marginBottom: '0.5rem' }}>Impact Player (12th)</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Impact Player Name"
+                                                value={matchConfig[team.id].impactPlayer}
+                                                onChange={(e) => handleImpactPlayerChange(team.id, e.target.value)}
+                                                style={{ width: '100%', padding: '0.75rem', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid var(--primary)', borderRadius: '8px', color: 'var(--foreground)' }}
+                                            />
+                                        </div>
                                     </div>
-                                ))}
-                                <div style={{ marginTop: '1rem', borderTop: '1px dashed var(--card-border)', paddingTop: '1rem' }}>
-                                    <label style={{ display: 'block', fontSize: '0.75rem', opacity: 0.5, marginBottom: '0.5rem' }}>Optional Impact Player (12th)</label>
-                                    <input
-                                        type="text"
-                                        placeholder="Impact Player Name"
-                                        value={matchConfig.teamA.impactPlayer}
-                                        onChange={(e) => handleImpactPlayerChange('teamA', e.target.value)}
-                                        style={{
-                                            width: '100%',
-                                            padding: '0.75rem',
-                                            background: 'rgba(16, 185, 129, 0.05)',
-                                            border: '1px solid var(--primary)',
-                                            borderRadius: '8px',
-                                            color: 'var(--foreground)'
-                                        }}
-                                    />
                                 </div>
-                            </div>
+                            ))}
 
                             <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
                                 <button className="btn" style={{ flex: 1 }} onClick={() => setStep(1)}>Back</button>
-                                <button className="btn btn-primary" style={{ flex: 2, padding: '1rem' }} onClick={() => setStep(3)}>Confirm Squads</button>
+                                <button className="btn btn-primary" style={{ flex: 2, padding: '1rem' }} onClick={() => {
+                                    if (isSquadComplete('teamA') && isSquadComplete('teamB')) setStep(3);
+                                    else alert('Please enter all 11 players for both teams.');
+                                }}>Confirm Squads</button>
                             </div>
                         </motion.div>
                     )}
@@ -205,33 +230,23 @@ export default function MatchSetup() {
                             animate={{ opacity: 1, scale: 1 }}
                         >
                             <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                                <div style={{
-                                    width: '80px',
-                                    height: '80px',
-                                    borderRadius: '50%',
-                                    background: 'var(--primary)',
-                                    color: 'white',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    margin: '0 auto 1.5rem'
-                                }}>
+                                <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
                                     <Trophy size={40} />
                                 </div>
-                                <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Ready to Play?</h2>
+                                <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Ready to Start?</h2>
                                 <p style={{ opacity: 0.6, marginTop: '0.5rem' }}>
                                     {matchConfig.teamA.name} vs {matchConfig.teamB.name}<br />
-                                    {matchConfig.maxOvers} Overs • T20 Format
+                                    {matchConfig.maxOvers} Overs • {matchConfig.maxWickets} Wickets
                                 </p>
                             </div>
 
-                            <div className="card" style={{ marginBottom: '2rem' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                                    <span>Playing 11 Confirmed</span>
+                            <div className="card" style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Squads Confirmed</span>
                                     <CheckCircle2 color="var(--primary)" size={18} />
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>Impact Player Registered</span>
+                                    <span>Scorer: {matchConfig.scorerName}</span>
                                     <CheckCircle2 color="var(--primary)" size={18} />
                                 </div>
                             </div>
