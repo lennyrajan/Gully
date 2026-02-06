@@ -206,6 +206,7 @@ export const useScorer = (initialState = {}) => {
             };
 
             const { runs, isExtra, extraType, isWicket, wicketType, fielder, isStrikerOut = true } = ballData;
+            const isFreeHitDismissal = isWicket && prev.isFreeHit && wicketType !== 'Run Out';
 
             // Initialize player stats if not exists
             if (!newState.scorecard.batting[prev.striker]) {
@@ -294,7 +295,6 @@ export const useScorer = (initialState = {}) => {
             // 2. Handle Wickets (ICC Laws 21.4, 27-32)
             if (isWicket) {
                 // ICC Law 21.4: On a Free Hit, batsman can only be run out
-                const isFreeHitDismissal = prev.isFreeHit && wicketType !== 'Run Out';
 
                 if (isFreeHitDismissal) {
                     // Wicket is NOT valid on free hit (except run out)
