@@ -257,383 +257,169 @@ export default function MatchScorecard() {
                     </div>
                 </motion.div>
 
-                {/* Completed Innings */}
-                {state.completedInnings && state.completedInnings.length > 0 && state.completedInnings.map((innings, inningsIdx) => (
-                    <React.Fragment key={`innings-${inningsIdx}`}>
-                        {/* Innings Header */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 + (inningsIdx * 0.1) }}
-                            style={{
-                                padding: '1rem',
-                                background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
-                                borderRadius: '12px',
-                                marginBottom: '1rem',
-                                color: 'white'
-                            }}
-                        >
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                                {inningsIdx === 0 ? '1st' : '2nd'} Innings - {innings.battingTeam?.name || `Team ${inningsIdx + 1}`}
-                            </h2>
-                            <div style={{ fontSize: '2rem', fontWeight: 800, marginTop: '0.5rem' }}>
-                                {innings.totalRuns}/{innings.wickets}
-                                <span style={{ fontSize: '1rem', opacity: 0.9, marginLeft: '1rem' }}>
-                                    ({Math.floor((innings.balls || 0) / 6)}.{(innings.balls || 0) % 6} Ov)
+                {/* Batting Scorecard */}
+                {state.scorecard?.batting && Object.keys(state.scorecard.batting).length > 0 ? (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="card"
+                        style={{ marginBottom: '2rem' }}
+                    >
+                        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Users size={24} />
+                            Batting Scorecard - {state.battingTeam?.name || 'Batting Team'}
+                        </h2>
+
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '2px solid var(--card-border)' }}>
+                                        <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>Batsman</th>
+                                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>R</th>
+                                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>B</th>
+                                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>4s</th>
+                                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>6s</th>
+                                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>SR</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(state.battingOrder || Object.keys(state.scorecard.batting)).map((playerName, idx) => {
+                                        const stats = state.scorecard.batting[playerName];
+                                        if (!stats) return null; // Skip if no stats
+
+                                        const strikeRate = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0';
+                                        const isOnStrike = playerName === state.striker;
+
+                                        return (
+                                            <tr
+                                                key={idx}
+                                                style={{
+                                                    borderBottom: '1px solid var(--card-border)',
+                                                    background: isOnStrike ? 'rgba(16, 185, 129, 0.1)' : 'transparent'
+                                                }}
+                                            >
+                                                <td style={{ padding: '0.75rem' }}>
+                                                    <div style={{ fontWeight: isOnStrike ? 700 : 500 }}>
+                                                        {playerName}
+                                                        {isOnStrike && <span style={{ marginLeft: '0.5rem', color: 'var(--primary)', fontSize: '0.75rem' }}>*</span>}
+                                                    </div>
+                                                    {stats.dismissal && (
+                                                        <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
+                                                            {stats.dismissal}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem', fontWeight: 600 }}>{stats.runs || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.balls || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.fours || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.sixes || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{strikeRate}</td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* Extras and Total */}
+                        <div style={{
+                            marginTop: '1rem',
+                            paddingTop: '1rem',
+                            borderTop: '1px solid var(--card-border)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: '0.9rem'
+                        }}>
+                            <div>
+                                <span style={{ opacity: 0.7 }}>Extras: </span>
+                                <span style={{ fontWeight: 600 }}>
+                                    {(state.extras?.wides || 0) + (state.extras?.noBalls || 0) + (state.extras?.byes || 0) + (state.extras?.legByes || 0)}
+                                </span>
+                                <span style={{ fontSize: '0.75rem', opacity: 0.5, marginLeft: '0.5rem' }}>
+                                    (wd {state.extras?.wides || 0}, nb {state.extras?.noBalls || 0}, b {state.extras?.byes || 0}, lb {state.extras?.legByes || 0})
                                 </span>
                             </div>
-                        </motion.div>
-
-                        {/* Batting Scorecard */}
-                        {innings.scorecard?.batting && Object.keys(innings.scorecard.batting).length > 0 && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.15 + (inningsIdx * 0.1) }}
-                                className="card"
-                                style={{ marginBottom: '1rem' }}
-                            >
-                                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <Users size={20} />
-                                    Batting
-                                </h3>
-
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                        <thead>
-                                            <tr style={{ borderBottom: '2px solid var(--card-border)' }}>
-                                                <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>Batsman</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>R</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>B</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>4s</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>6s</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>SR</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {(innings.battingOrder || Object.keys(innings.scorecard.batting)).map((playerName, idx) => {
-                                                const stats = innings.scorecard.batting[playerName];
-                                                if (!stats) return null;
-
-                                                const strikeRate = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0';
-
-                                                return (
-                                                    <tr key={idx} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                                                        <td style={{ padding: '0.75rem' }}>
-                                                            <div style={{ fontWeight: 500 }}>
-                                                                {playerName}
-                                                            </div>
-                                                            {stats.dismissal && (
-                                                                <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
-                                                                    {stats.dismissal}
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem', fontWeight: 600 }}>{stats.runs || 0}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.balls || 0}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.fours || 0}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.sixes || 0}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{strikeRate}</td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {/* Extras and Total */}
-                                <div style={{
-                                    marginTop: '1rem',
-                                    paddingTop: '1rem',
-                                    borderTop: '1px solid var(--card-border)',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    fontSize: '0.9rem'
-                                }}>
-                                    <div>
-                                        <span style={{ opacity: 0.7 }}>Extras: </span>
-                                        <span style={{ fontWeight: 600 }}>
-                                            {(innings.extras?.wides || 0) + (innings.extras?.noBalls || 0) + (innings.extras?.byes || 0) + (innings.extras?.legByes || 0)}
-                                        </span>
-                                        <span style={{ fontSize: '0.75rem', opacity: 0.5, marginLeft: '0.5rem' }}>
-                                            (wd {innings.extras?.wides || 0}, nb {innings.extras?.noBalls || 0}, b {innings.extras?.byes || 0}, lb {innings.extras?.legByes || 0})
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span style={{ opacity: 0.7 }}>Total: </span>
-                                        <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--primary)' }}>
-                                            {innings.totalRuns}/{innings.wickets}
-                                        </span>
-                                        <span style={{ opacity: 0.7, marginLeft: '0.5rem' }}>
-                                            ({Math.floor((innings.balls || 0) / 6)}.{(innings.balls || 0) % 6} Ov)
-                                        </span>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        )}
-
-                        {/* Bowling Figures */}
-                        {innings.scorecard?.bowling && Object.keys(innings.scorecard.bowling).length > 0 && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 + (inningsIdx * 0.1) }}
-                                className="card"
-                                style={{ marginBottom: '2rem' }}
-                            >
-                                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <TrendingUp size={20} />
-                                    Bowling - {innings.bowlingTeam?.name || 'Bowling Team'}
-                                </h3>
-
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                        <thead>
-                                            <tr style={{ borderBottom: '2px solid var(--card-border)' }}>
-                                                <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>Bowler</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>O</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>M</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>R</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>W</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>Econ</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {Object.entries(innings.scorecard.bowling).map(([playerName, stats], idx) => (
-                                                <tr key={idx} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                                                    <td style={{ padding: '0.75rem', fontWeight: 500 }}>{playerName}</td>
-                                                    <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.overs || '0.0'}</td>
-                                                    <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.maidens || 0}</td>
-                                                    <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.runs || 0}</td>
-                                                    <td style={{ textAlign: 'center', padding: '0.75rem', fontWeight: 600 }}>{stats.wickets || 0}</td>
-                                                    <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.economy || '0.00'}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </motion.div>
-                        )}
-                    </React.Fragment>
-                ))}
-
-                {/* Current Innings (if match is ongoing) */}
-                {(isLive || matchData.status === 'INNINGS_BREAK') && state.scorecard && (
-                    <React.Fragment>
-                        {/* Current Innings Header */}
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            style={{
-                                padding: '1rem',
-                                background: matchData.status === 'INNINGS_BREAK'
-                                    ? 'linear-gradient(135deg, #f59e0b, #d97706)'
-                                    : 'linear-gradient(135deg, #22c55e, #16a34a)',
-                                borderRadius: '12px',
-                                marginBottom: '1rem',
-                                color: 'white'
-                            }}
-                        >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                                    {state.innings === 1 ? '1st' : '2nd'} Innings - {state.battingTeam?.name || 'Batting Team'}
-                                    {matchData.status === 'INNINGS_BREAK' && <span style={{ marginLeft: '1rem', fontSize: '0.9rem', opacity: 0.9 }}>• Innings Break</span>}
-                                </h2>
-                                {isLive && (
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        fontSize: '0.875rem',
-                                        fontWeight: 600
-                                    }}>
-                                        <div style={{
-                                            width: '8px',
-                                            height: '8px',
-                                            borderRadius: '50%',
-                                            background: 'white',
-                                            animation: 'pulse 2s infinite'
-                                        }} />
-                                        LIVE
-                                    </div>
-                                )}
+                            <div>
+                                <span style={{ opacity: 0.7 }}>Total: </span>
+                                <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--primary)' }}>
+                                    {state.totalRuns}/{state.wickets}
+                                </span>
+                                <span style={{ opacity: 0.7, marginLeft: '0.5rem' }}>
+                                    ({Math.floor((state.balls || 0) / 6)}.{(state.balls || 0) % 6} Ov)
+                                </span>
                             </div>
-                            {state.totalRuns !== undefined && (
-                                <div style={{ fontSize: '2rem', fontWeight: 800, marginTop: '0.5rem' }}>
-                                    {state.totalRuns}/{state.wickets || 0}
-                                    <span style={{ fontSize: '1rem', opacity: 0.9, marginLeft: '1rem' }}>
-                                        ({Math.floor((state.balls || 0) / 6)}.{(state.balls || 0) % 6} Ov)
-                                    </span>
-                                </div>
-                            )}
-                        </motion.div>
+                        </div>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="card"
+                        style={{ marginBottom: '2rem', padding: '2rem', textAlign: 'center' }}
+                    >
+                        <Users size={48} style={{ opacity: 0.3, margin: '0 auto 1rem' }} />
+                        <p style={{ opacity: 0.7 }}>
+                            {state.totalRuns === 0 ? 'Match just started - no balls bowled yet' : 'Batting scorecard will appear once scoring begins'}
+                        </p>
+                    </motion.div>
+                )}
 
-                        {/* Batting Scorecard */}
-                        {state.scorecard?.batting && Object.keys(state.scorecard.batting).length > 0 ? (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                className="card"
-                                style={{ marginBottom: '2rem' }}
-                            >
-                                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <Users size={24} />
-                                    Batting Scorecard - {state.battingTeam?.name || 'Batting Team'}
-                                </h2>
+                {/* Bowling Figures */}
+                {state.scorecard?.bowling && Object.keys(state.scorecard.bowling).length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2 }}
+                        className="card"
+                        style={{ marginBottom: '2rem' }}
+                    >
+                        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <TrendingUp size={24} />
+                            Bowling Figures - {state.bowlingTeam?.name || 'Bowling Team'}
+                        </h2>
 
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                        <thead>
-                                            <tr style={{ borderBottom: '2px solid var(--card-border)' }}>
-                                                <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>Batsman</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>R</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>B</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>4s</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>6s</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>SR</th>
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '2px solid var(--card-border)' }}>
+                                        <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>Bowler</th>
+                                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>O</th>
+                                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>M</th>
+                                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>R</th>
+                                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>W</th>
+                                        <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>Econ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {Object.entries(state.scorecard.bowling).map(([playerName, stats], idx) => {
+                                        const isBowling = playerName === state.bowler;
+
+                                        return (
+                                            <tr
+                                                key={idx}
+                                                style={{
+                                                    borderBottom: '1px solid var(--card-border)',
+                                                    background: isBowling ? 'rgba(16, 185, 129, 0.1)' : 'transparent'
+                                                }}
+                                            >
+                                                <td style={{ padding: '0.75rem', fontWeight: isBowling ? 700 : 500 }}>
+                                                    {playerName}
+                                                    {isBowling && <span style={{ marginLeft: '0.5rem', color: 'var(--primary)', fontSize: '0.75rem' }}>*</span>}
+                                                </td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.overs || '0.0'}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.maidens || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.runs || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem', fontWeight: 600 }}>{stats.wickets || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.economy || '0.00'}</td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {(state.battingOrder || Object.keys(state.scorecard.batting)).map((playerName, idx) => {
-                                                const stats = state.scorecard.batting[playerName];
-                                                if (!stats) return null; // Skip if no stats
-
-                                                const strikeRate = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0';
-                                                const isOnStrike = playerName === state.striker;
-
-                                                return (
-                                                    <tr
-                                                        key={idx}
-                                                        style={{
-                                                            borderBottom: '1px solid var(--card-border)',
-                                                            background: isOnStrike ? 'rgba(16, 185, 129, 0.1)' : 'transparent'
-                                                        }}
-                                                    >
-                                                        <td style={{ padding: '0.75rem' }}>
-                                                            <div style={{ fontWeight: isOnStrike ? 700 : 500 }}>
-                                                                {playerName}
-                                                                {isOnStrike && <span style={{ marginLeft: '0.5rem', color: 'var(--primary)', fontSize: '0.75rem' }}>*</span>}
-                                                            </div>
-                                                            {stats.dismissal && (
-                                                                <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
-                                                                    {stats.dismissal}
-                                                                </div>
-                                                            )}
-                                                        </td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem', fontWeight: 600 }}>{stats.runs || 0}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.balls || 0}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.fours || 0}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.sixes || 0}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{strikeRate}</td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                {/* Extras and Total */}
-                                <div style={{
-                                    marginTop: '1rem',
-                                    paddingTop: '1rem',
-                                    borderTop: '1px solid var(--card-border)',
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    fontSize: '0.9rem'
-                                }}>
-                                    <div>
-                                        <span style={{ opacity: 0.7 }}>Extras: </span>
-                                        <span style={{ fontWeight: 600 }}>
-                                            {(state.extras?.wides || 0) + (state.extras?.noBalls || 0) + (state.extras?.byes || 0) + (state.extras?.legByes || 0)}
-                                        </span>
-                                        <span style={{ fontSize: '0.75rem', opacity: 0.5, marginLeft: '0.5rem' }}>
-                                            (wd {state.extras?.wides || 0}, nb {state.extras?.noBalls || 0}, b {state.extras?.byes || 0}, lb {state.extras?.legByes || 0})
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <span style={{ opacity: 0.7 }}>Total: </span>
-                                        <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--primary)' }}>
-                                            {state.totalRuns}/{state.wickets}
-                                        </span>
-                                        <span style={{ opacity: 0.7, marginLeft: '0.5rem' }}>
-                                            ({Math.floor((state.balls || 0) / 6)}.{(state.balls || 0) % 6} Ov)
-                                        </span>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ) : (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.1 }}
-                                className="card"
-                                style={{ marginBottom: '2rem', padding: '2rem', textAlign: 'center' }}
-                            >
-                                <Users size={48} style={{ opacity: 0.3, margin: '0 auto 1rem' }} />
-                                <p style={{ opacity: 0.7 }}>
-                                    {state.totalRuns === 0 ? 'Match just started - no balls bowled yet' : 'Batting scorecard will appear once scoring begins'}
-                                </p>
-                            </motion.div>
-                        )}
-
-                        {/* Bowling Figures */}
-                        {state.scorecard?.bowling && Object.keys(state.scorecard.bowling).length > 0 && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: 0.2 }}
-                                className="card"
-                                style={{ marginBottom: '2rem' }}
-                            >
-                                <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                    <TrendingUp size={24} />
-                                    Bowling Figures - {state.bowlingTeam?.name || 'Bowling Team'}
-                                </h2>
-
-                                <div style={{ overflowX: 'auto' }}>
-                                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                                        <thead>
-                                            <tr style={{ borderBottom: '2px solid var(--card-border)' }}>
-                                                <th style={{ textAlign: 'left', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>Bowler</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>O</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>M</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>R</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>W</th>
-                                                <th style={{ textAlign: 'center', padding: '0.75rem', fontSize: '0.875rem', fontWeight: 600, opacity: 0.7 }}>Econ</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {Object.entries(state.scorecard.bowling).map(([playerName, stats], idx) => {
-                                                const isBowling = playerName === state.bowler;
-
-                                                return (
-                                                    <tr
-                                                        key={idx}
-                                                        style={{
-                                                            borderBottom: '1px solid var(--card-border)',
-                                                            background: isBowling ? 'rgba(16, 185, 129, 0.1)' : 'transparent'
-                                                        }}
-                                                    >
-                                                        <td style={{ padding: '0.75rem', fontWeight: isBowling ? 700 : 500 }}>
-                                                            {playerName}
-                                                            {isBowling && <span style={{ marginLeft: '0.5rem', color: 'var(--primary)', fontSize: '0.75rem' }}>*</span>}
-                                                        </td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.overs || '0.0'}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.maidens || 0}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.runs || 0}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem', fontWeight: 600 }}>{stats.wickets || 0}</td>
-                                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.economy || '0.00'}</td>
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </motion.div>
-                        )}
-                    </React.Fragment>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </motion.div>
                 )}
 
                 {/* Match Summary */}
