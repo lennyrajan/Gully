@@ -101,7 +101,20 @@ function ScorerBoard({ config }) {
     const [newBatterPending, setNewBatterPending] = useState('');
 
     const handleRunClick = (runs) => {
-        if (matchState.isPaused || !matchState.bowler || matchState.isMatchFinished || matchState.isInningsComplete) return;
+        console.log('🏏 handleRunClick called with runs:', runs);
+        console.log('🔍 Guard conditions:', {
+            isPaused: matchState.isPaused,
+            hasBowler: !!matchState.bowler,
+            isMatchFinished: matchState.isMatchFinished,
+            isInningsComplete: matchState.isInningsComplete
+        });
+
+        if (matchState.isPaused || !matchState.bowler || matchState.isMatchFinished || matchState.isInningsComplete) {
+            console.log('❌ Scoring blocked by guard conditions');
+            return;
+        }
+
+        console.log('✅ Calling addBall');
         addBall({
             runs,
             isExtra: !!selectedExtra,
