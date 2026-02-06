@@ -5,7 +5,7 @@ import { useTheme } from '@/lib/ThemeProvider';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthProvider';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, limit, getDocs, where, onSnapshot, doc, updateDoc, or } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, where, onSnapshot, doc, updateDoc, or, and } from 'firebase/firestore';
 import {
   Trophy,
   Calendar,
@@ -51,19 +51,23 @@ export default function Home() {
           // If logged in, show matches created by this user OR on this device
           q = query(
             matchesRef,
-            where('status', 'in', activeStatuses),
-            or(
-              where('deviceId', '==', id),
-              where('createdBy', '==', currentUser.uid),
-              where('scorerId', '==', currentUser.uid)
+            and(
+              where('status', 'in', activeStatuses),
+              or(
+                where('deviceId', '==', id),
+                where('createdBy', '==', currentUser.uid),
+                where('scorerId', '==', currentUser.uid)
+              )
             )
           );
         } else {
           // Otherwise, just stick to the device pinning
           q = query(
             matchesRef,
-            where('deviceId', '==', id),
-            where('status', 'in', activeStatuses)
+            and(
+              where('status', 'in', activeStatuses),
+              where('deviceId', '==', id)
+            )
           );
         }
 
