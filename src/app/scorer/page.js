@@ -57,6 +57,9 @@ function ScorerBoard({ config }) {
         addBall,
         undo,
         lastSynced,
+        swapStriker,
+        startNextInnings,
+        maxOversPerBowler,
         setStriker,
         setNonStriker,
         setBatters,
@@ -87,6 +90,21 @@ function ScorerBoard({ config }) {
 
     const handleWicketClick = (type) => {
         setWicketTypePending(type);
+        const autoSkipTypes = ['Bowled', 'LBW', 'Retired'];
+
+        if (autoSkipTypes.includes(type)) {
+            addBall({
+                runs: 0,
+                isExtra: false,
+                isWicket: true,
+                wicketType: type,
+                fielder: '',
+                isStrikerOut: true
+            });
+            setShowWicketModal(false);
+            return;
+        }
+
         if (type === 'Stumped') {
             const team = matchState.bowlingTeam;
             const wkIndex = team.wicketKeeper;
@@ -128,10 +146,34 @@ function ScorerBoard({ config }) {
     };
 
     const finalizeMatch = async () => {
+        // If it's the 1st innings, offer to start next innings instead of fully finalizing
+        if (matchState.innings === 1) {
+            const proceed = window.confirm("End of 1st Innings. Start 2nd Innings?");
+            if (proceed) {
+                await updateDoc(doc(db, 'matches', matchState.matchId), {
+                    status: 'INNINGS_BREAK',
+                    lastUpdated: new Date().toISOString()
+                });
+                startNextInnings();
+                return;
+            }
+        }
+
         const stats = {
             date: new Date().toLocaleDateString(),
             teams: `${matchState.battingTeam.name} vs ${matchState.bowlingTeam.name}`,
-            scorecard: matchState.scorecard
+            inningsHistory: [
+                ...(matchState.completedInnings || []),
+                {
+                    inningsNum: matchState.innings,
+                    battingTeam: matchState.battingTeam.name,
+                    bowlingTeam: matchState.bowlingTeam.name,
+                    totalRuns: matchState.totalRuns,
+                    wickets: matchState.wickets,
+                    balls: matchState.balls,
+                    scorecard: matchState.scorecard
+                }
+            ]
         };
 
         // Update Firestore status
@@ -300,9 +342,18 @@ function ScorerBoard({ config }) {
                                         <option value="" disabled>Choose Bowler...</option>
                                         {matchState.bowlingTeam.players
                                             .filter(p => p.trim() !== '')
-                                            .map(p => (
-                                                <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
-                                            ))}
+                                            .map(p => {
+                                                const bStats = matchState.scorecard.bowling[p];
+                                                const ballsBowled = bStats ? bStats.balls : 0;
+                                                const overCount = Math.floor(ballsBowled / 6);
+                                                const isLimitReached = overCount >= maxOversPerBowler;
+
+                                                return (
+                                                    <option key={p} value={p} disabled={isLimitReached}>
+                                                        {getPlayerDisplayName(p, 'bowling')} {isLimitReached ? '(Limit Reached)' : `(${overCount} Ov)`}
+                                                    </option>
+                                                );
+                                            })}
                                     </select>
                                 </div>
                             </>
@@ -318,9 +369,20 @@ function ScorerBoard({ config }) {
                                     value={matchState.bowler || ''}
                                 >
                                     <option value="" disabled>Choose Bowler...</option>
-                                    {matchState.bowlingTeam.players.filter(p => p !== matchState.lastBowler).map(p => (
-                                        <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
-                                    ))}
+                                    {matchState.bowlingTeam.players
+                                        .filter(p => p !== matchState.lastBowler)
+                                        .map(p => {
+                                            const bStats = matchState.scorecard.bowling[p];
+                                            const ballsBowled = bStats ? bStats.balls : 0;
+                                            const overCount = Math.floor(ballsBowled / 6);
+                                            const isLimitReached = overCount >= maxOversPerBowler;
+
+                                            return (
+                                                <option key={p} value={p} disabled={isLimitReached}>
+                                                    {getPlayerDisplayName(p, 'bowling')} {isLimitReached ? '(Limit Reached)' : `(${overCount} Ov)`}
+                                                </option>
+                                            );
+                                        })}
                                 </select>
                             </div>
                         )}
@@ -373,7 +435,7 @@ function ScorerBoard({ config }) {
                     </button>
                     {(Math.floor(matchState.balls / 6) >= matchState.maxOvers || matchState.wickets >= matchState.maxWickets) && (
                         <button className="btn" style={{ background: 'var(--primary)', color: 'white', padding: '0.5rem 1rem' }} onClick={finalizeMatch}>
-                            Finish
+                            {matchState.innings === 2 ? 'Finish' : 'End Innings'}
                         </button>
                     )}
                 </div>
@@ -421,25 +483,75 @@ function ScorerBoard({ config }) {
                     width: '100%',
                     maxWidth: '400px',
                     display: 'flex',
-                    justifyContent: 'space-around',
-                    background: 'var(--card-bg)',
-                    padding: '1.25rem',
-                    borderRadius: 'var(--radius-lg)',
-                    boxShadow: 'var(--shadow-md)'
+                    flexDirection: 'column',
+                    gap: '1.25rem'
                 }}>
-                    <div style={{ textAlign: 'center' }}>
-                        <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Striker</p>
-                        <p style={{ fontWeight: 700, color: 'var(--primary)', fontSize: '1.1rem' }}>{getPlayerDisplayName(matchState.striker, 'batting') || '?'}</p>
-                        <p style={{ fontSize: '0.75rem', opacity: 0.6 }}>
-                            {matchState.striker ? `${matchState.scorecard.batting[matchState.striker]?.runs || 0}(${matchState.scorecard.batting[matchState.striker]?.balls || 0})` : '-'}
-                        </p>
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-around',
+                        background: 'var(--card-bg)',
+                        padding: '1.25rem',
+                        borderRadius: 'var(--radius-lg)',
+                        boxShadow: 'var(--shadow-md)',
+                        position: 'relative',
+                        border: '1px solid var(--card-border)'
+                    }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Striker</p>
+                            <p style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '1.1rem' }}>{getPlayerDisplayName(matchState.striker, 'batting') || '?'}</p>
+                            <p style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                                {matchState.striker ? `${matchState.scorecard.batting[matchState.striker]?.runs || 0}(${matchState.scorecard.batting[matchState.striker]?.balls || 0})` : '-'}
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={swapStriker}
+                            style={{
+                                alignSelf: 'center',
+                                background: 'var(--card-bg)',
+                                border: '1px solid var(--card-border)',
+                                borderRadius: '50%',
+                                padding: '0.6rem',
+                                color: 'var(--primary)',
+                                cursor: 'pointer',
+                                boxShadow: 'var(--shadow-sm)'
+                            }}
+                            title="Swap Striker"
+                        >
+                            <RotateCcw size={16} />
+                        </button>
+
+                        <div style={{ textAlign: 'center', opacity: 0.8 }}>
+                            <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Non-Striker</p>
+                            <p style={{ fontWeight: 700, fontSize: '1.1rem' }}>{getPlayerDisplayName(matchState.nonStriker, 'batting') || '?'}</p>
+                            <p style={{ fontSize: '0.85rem', fontWeight: 700 }}>
+                                {matchState.nonStriker ? `${matchState.scorecard.batting[matchState.nonStriker]?.runs || 0}(${matchState.scorecard.batting[matchState.nonStriker]?.balls || 0})` : '-'}
+                            </p>
+                        </div>
                     </div>
-                    <div style={{ textAlign: 'center', opacity: 0.7 }}>
-                        <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>Non-Striker</p>
-                        <p style={{ fontWeight: 600, fontSize: '1.1rem' }}>{getPlayerDisplayName(matchState.nonStriker, 'batting') || '?'}</p>
-                        <p style={{ fontSize: '0.75rem', opacity: 0.6 }}>
-                            {matchState.nonStriker ? `${matchState.scorecard.batting[matchState.nonStriker]?.runs || 0}(${matchState.scorecard.batting[matchState.nonStriker]?.balls || 0})` : '-'}
-                        </p>
+
+                    <div style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        gap: '1rem',
+                        background: 'var(--primary)',
+                        color: 'white',
+                        padding: '0.75rem 1.25rem',
+                        borderRadius: 'var(--radius-lg)',
+                        boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)'
+                    }}>
+                        <div style={{ textAlign: 'right' }}>
+                            <p style={{ fontSize: '0.65rem', opacity: 0.8, textTransform: 'uppercase', fontWeight: 800 }}>Bowler</p>
+                            <p style={{ fontWeight: 800, fontSize: '1rem' }}>{getPlayerDisplayName(matchState.bowler, 'bowling') || '?'}</p>
+                        </div>
+                        <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.3)' }} />
+                        <div style={{ textAlign: 'left' }}>
+                            <p style={{ fontSize: '0.65rem', opacity: 0.8, textTransform: 'uppercase', fontWeight: 800 }}>Stats</p>
+                            <p style={{ fontWeight: 800, fontSize: '0.9rem' }}>
+                                {matchState.scorecard.bowling[matchState.bowler]?.overs || '0.0'}-{matchState.scorecard.bowling[matchState.bowler]?.maidens || 0}-{matchState.scorecard.bowling[matchState.bowler]?.runs || 0}-{matchState.scorecard.bowling[matchState.bowler]?.wickets || 0}
+                            </p>
+                        </div>
                     </div>
                 </div>
             </section>
@@ -502,7 +614,55 @@ function ScorerBoard({ config }) {
                             <p>Umpires: {[matchState.officials?.umpires?.umpire1, matchState.officials?.umpires?.umpire2].filter(Boolean).join(', ') || 'None'}</p>
                         </div>
 
-                        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>{matchState.battingTeam.name} Batting</h3>
+                        {/* Completed Innings */}
+                        {matchState.completedInnings?.map((inn) => (
+                            <div key={inn.inningsNum} style={{ marginBottom: '3rem', borderBottom: '1px dashed var(--card-border)', paddingBottom: '2rem' }}>
+                                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Innings {inn.inningsNum}: {inn.battingTeam}</span>
+                                    <span>{inn.totalRuns}/{inn.wickets}</span>
+                                </h2>
+
+                                <h3 style={{ fontSize: '1rem', fontWeight: 700, opacity: 0.7, marginBottom: '1rem' }}>Batting</h3>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)', marginBottom: '1.5rem' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>
+                                        <span>BATTER</span><span>R</span><span>B</span><span>SR</span>
+                                    </div>
+                                    {Object.entries(inn.scorecard.batting).map(([name, stats]) => (
+                                        <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.9rem' }}>
+                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                                <span style={{ fontWeight: 600 }}>{name}</span>
+                                                <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{stats.dismissal || 'not out'}</span>
+                                            </div>
+                                            <span>{stats.runs}</span><span>{stats.balls}</span><span>{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <h3 style={{ fontSize: '1rem', fontWeight: 700, opacity: 0.7, marginBottom: '1rem' }}>Bowling</h3>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr 1.5fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.65rem', fontWeight: 700, opacity: 0.5 }}>
+                                        <span>BOWLER</span><span>O</span><span>M</span><span>DOTS</span><span>R</span><span>W</span><span>ER</span>
+                                    </div>
+                                    {Object.entries(inn.scorecard.bowling).map(([name, stats]) => (
+                                        <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr 1.5fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.85rem' }}>
+                                            <span style={{ fontWeight: 600 }}>{name}</span>
+                                            <span>{stats.overs}</span><span>{stats.maidens}</span><span>{stats.dots}</span><span>{stats.runs}</span><span>{stats.wickets}</span><span>{stats.economy || '0.00'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <p style={{ fontSize: '0.875rem', opacity: 0.6, marginTop: '1rem' }}>
+                                    Extras: {Object.values(inn.extras || {}).reduce((a, b) => a + b, 0)}
+                                </p>
+                            </div>
+                        ))}
+
+                        {/* Current Innings */}
+                        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Innings {matchState.innings}: {matchState.battingTeam.name}</span>
+                            <span>{matchState.totalRuns}/{matchState.wickets}</span>
+                        </h2>
+
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>Batting</h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)', marginBottom: '2rem' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>
                                 <span>BATTER</span><span>R</span><span>B</span><span>SR</span>
@@ -520,22 +680,23 @@ function ScorerBoard({ config }) {
 
                         <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent)', marginBottom: '1rem' }}>{matchState.bowlingTeam.name} Bowling</h3>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.65rem', fontWeight: 700, opacity: 0.5 }}>
-                                <span>BOWLER</span><span>O</span><span>M</span><span>DOTS</span><span>R</span><span>W</span>
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr 1.5fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.65rem', fontWeight: 700, opacity: 0.5 }}>
+                                <span>BOWLER</span><span>O</span><span>M</span><span>DOTS</span><span>R</span><span>W</span><span>ER</span>
                             </div>
                             {Object.entries(matchState.scorecard.bowling).map(([name, stats]) => (
-                                <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.85rem' }}>
+                                <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr 1.5fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.85rem' }}>
                                     <span style={{ fontWeight: 600 }}>{getPlayerDisplayName(name, 'bowling')}</span>
                                     <span>{stats.overs}</span>
                                     <span>{stats.maidens}</span>
                                     <span>{stats.dots}</span>
                                     <span>{stats.runs}</span>
                                     <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{stats.wickets}</span>
+                                    <span style={{ opacity: 0.7 }}>{stats.economy || '0.00'}</span>
                                 </div>
                             ))}
                         </div>
 
-                        <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--card-bg)', borderRadius: '12px' }}>
+                        <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--primary)' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: 800 }}>
                                 <span>TOTAL</span><span>{matchState.totalRuns}/{matchState.wickets}</span>
                             </div>
@@ -554,7 +715,7 @@ function ScorerBoard({ config }) {
                         <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={{ width: '100%', background: 'var(--background)', borderTopLeftRadius: '2rem', borderTopRightRadius: '2rem', padding: '2rem' }}>
                             <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Choose Wicket Type</h2>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                {['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Other'].map(type => (
+                                {['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Retired', 'Other'].map(type => (
                                     <button key={type} className="btn" onClick={() => handleWicketClick(type)} style={{ background: 'var(--card-border)', padding: '1.5rem' }}>{type}</button>
                                 ))}
                             </div>

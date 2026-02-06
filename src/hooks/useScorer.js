@@ -23,11 +23,13 @@ export const useScorer = (initialState = {}) => {
             },
             scorecard: { batting: {}, bowling: {} },
             history: [],
+            completedInnings: [], // Preserve multi-innings history
             ballsLog: [],
             isPaused: true,
             pauseReason: 'INIT',
             lastBowler: null,
             overRuns: 0,
+            innings: 1, // Current innings tracking
             ...cleanInitial,
             matchId: initialState.matchId || null
         };
@@ -93,12 +95,23 @@ export const useScorer = (initialState = {}) => {
     }, []);
 
     const setBatters = useCallback((str, nonStr) => {
-        setMatchState(prev => ({
-            ...prev,
-            striker: str,
-            nonStriker: nonStr,
-            isPaused: !str || !nonStr || !prev.bowler
-        }));
+        setMatchState(prev => {
+            const isPaused = !str || !nonStr || !prev.bowler;
+            let pauseReason = prev.pauseReason;
+
+            // Transition from WICKET to OVER if it's the end of an over and we have batters
+            if (prev.pauseReason === 'WICKET' && str && nonStr && !prev.bowler && prev.balls > 0 && prev.balls % 6 === 0) {
+                pauseReason = 'OVER';
+            }
+
+            return {
+                ...prev,
+                striker: str,
+                nonStriker: nonStr,
+                isPaused,
+                pauseReason
+            };
+        });
     }, []);
 
     const setBowler = useCallback((name) => {
@@ -217,10 +230,14 @@ export const useScorer = (initialState = {}) => {
 
                 let dismissalText = '';
                 if (wicketType === 'Bowled') dismissalText = `b ${prev.bowler}`;
-                else if (wicketType === 'Caught') dismissalText = `c ${fielder || 'Fielder'} b ${prev.bowler}`;
+                else if (wicketType === 'Caught') {
+                    if (fielder === prev.bowler) dismissalText = `c & b ${prev.bowler}`;
+                    else dismissalText = `c ${fielder || 'Fielder'} b ${prev.bowler}`;
+                }
                 else if (wicketType === 'LBW') dismissalText = `lbw b ${prev.bowler}`;
                 else if (wicketType === 'Run Out') dismissalText = `run out (${fielder || 'Fielder'})`;
                 else if (wicketType === 'Stumped') dismissalText = `st ${fielder || 'Keeper'} b ${prev.bowler}`;
+                else if (wicketType === 'Retired') dismissalText = `retired out`;
                 else dismissalText = wicketType;
 
                 outBatterStats.dismissal = dismissalText;
@@ -237,14 +254,21 @@ export const useScorer = (initialState = {}) => {
             const bOvers = Math.floor(currentBowler.balls / 6);
             const bBalls = currentBowler.balls % 6;
             currentBowler.overs = `${bOvers}.${bBalls}`;
+            currentBowler.economy = currentBowler.balls > 0
+                ? ((currentBowler.runs / currentBowler.balls) * 6).toFixed(2)
+                : '0.00';
 
             const isLegalBall = !isExtra || (extraType !== 'wide' && extraType !== 'noBall');
             const isEndOfOver = isLegalBall && newState.balls % 6 === 0;
 
-            if (isEndOfOver && !newState.isPaused) {
+            if (isEndOfOver) {
                 if (newState.overRuns === 0) currentBowler.maidens += 1;
-                newState.isPaused = true;
-                newState.pauseReason = 'OVER';
+                // If a wicket fell on the last ball, stay on WICKET pause reason
+                // The ScorerBoard will handle the double-pause flow
+                if (newState.pauseReason !== 'WICKET') {
+                    newState.isPaused = true;
+                    newState.pauseReason = 'OVER';
+                }
                 newState.lastBowler = prev.bowler;
                 newState.bowler = null;
             }
@@ -271,12 +295,63 @@ export const useScorer = (initialState = {}) => {
         });
     }, []);
 
+    const swapStriker = useCallback(() => {
+        setMatchState(prev => ({
+            ...prev,
+            striker: prev.nonStriker,
+            nonStriker: prev.striker
+        }));
+    }, []);
+
+    const startNextInnings = useCallback(() => {
+        setMatchState(prev => ({
+            ...prev,
+            completedInnings: [
+                ...(prev.completedInnings || []),
+                {
+                    inningsNum: prev.innings || 1,
+                    battingTeam: prev.battingTeam.name,
+                    bowlingTeam: prev.bowlingTeam.name,
+                    totalRuns: prev.totalRuns,
+                    wickets: prev.wickets,
+                    balls: prev.balls,
+                    extras: { ...prev.extras },
+                    scorecard: deepCloneScorecard(prev.scorecard)
+                }
+            ],
+            battingTeam: prev.bowlingTeam,
+            bowlingTeam: prev.battingTeam,
+            totalRuns: 0,
+            wickets: 0,
+            balls: 0,
+            extras: { wides: 0, noBalls: 0, byes: 0, legByes: 0 },
+            scorecard: { batting: {}, bowling: {} },
+            history: [],
+            ballsLog: [],
+            isPaused: true,
+            pauseReason: 'INIT',
+            lastBowler: null,
+            overRuns: 0,
+            striker: null,
+            nonStriker: null,
+            bowler: null,
+            innings: (prev.innings || 1) + 1
+        }));
+    }, [deepCloneScorecard]);
+
+    const maxOversPerBowler = useMemo(() => {
+        return Math.ceil(matchState.maxOvers / 5);
+    }, [matchState.maxOvers]);
+
     return {
         matchState,
         overs,
         addBall,
         undo,
         lastSynced,
+        swapStriker,
+        startNextInnings,
+        maxOversPerBowler,
         setStriker,
         setNonStriker,
         setBatters,
