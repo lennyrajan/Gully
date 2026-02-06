@@ -235,7 +235,66 @@ export default function MatchSetup() {
                 <AnimatePresence mode="wait">
                     {step === 1 && (
                         <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>Match Details</h2>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>Match Details</h2>
+                            <p style={{ opacity: 0.6, marginBottom: '2rem' }}>Start a fresh match or join one using a code.</p>
+
+                            <div style={{ marginBottom: '2rem' }}>
+                                <button
+                                    className="btn"
+                                    style={{
+                                        width: '100%',
+                                        padding: '1.25rem',
+                                        background: 'rgba(59, 130, 246, 0.1)',
+                                        border: '1px dashed var(--primary)',
+                                        color: 'var(--primary)',
+                                        fontWeight: 800,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.75rem'
+                                    }}
+                                    onClick={async () => {
+                                        const code = window.prompt("Enter 6-digit Transfer Code:");
+                                        if (!code) return;
+
+                                        try {
+                                            const q = query(collection(db, 'matches'), where('transferCode.code', '==', code));
+                                            const snapshot = await getDocs(q);
+
+                                            if (snapshot.empty) {
+                                                alert("Invalid or expired code.");
+                                                return;
+                                            }
+
+                                            const matchDoc = snapshot.docs[0];
+                                            const matchData = matchDoc.data();
+
+                                            // Check expiration
+                                            const expiresAt = new Date(matchData.transferCode.expiresAt);
+                                            if (expiresAt < new Date()) {
+                                                alert("This code has expired.");
+                                                return;
+                                            }
+
+                                            // Take over!
+                                            localStorage.setItem('currentMatchConfig', JSON.stringify({
+                                                ...matchData,
+                                                matchId: matchDoc.id
+                                            }));
+                                            alert("Scoring transferred successfully!");
+                                            router.push('/scorer');
+
+                                        } catch (err) {
+                                            console.error("Error joining match:", err);
+                                            alert("Failed to join match. Check your connection.");
+                                        }
+                                    }}
+                                >
+                                    <Plus size={20} />
+                                    JOIN EXISTING MATCH (USE CODE)
+                                </button>
+                            </div>
+
                             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                     <div>

@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useScorer } from '@/hooks/useScorer';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { getResourcePercentage, calculateRevisedTarget } from '@/lib/dls';
 import {
     ChevronLeft,
     RotateCcw,
@@ -64,11 +65,22 @@ function ScorerBoard({ config }) {
         setStriker,
         setNonStriker,
         setBatters,
-        setBowler
+        setBowler,
+        updateDLS
     } = useScorer(config);
 
     const [showWicketModal, setShowWicketModal] = useState(false);
     const [showScorecard, setShowScorecard] = useState(false);
+    const [showMoreOptions, setShowMoreOptions] = useState(false);
+    const [showDLSModal, setShowDLSModal] = useState(false);
+    const [showTransferModal, setShowTransferModal] = useState(false);
+    const [transferCode, setTransferCode] = useState(null);
+
+    // DLS Modal State
+    const [dlsOversRemaining, setDlsOversRemaining] = useState(matchState.maxOvers);
+    const [dlsWicketsLost, setDlsWicketsLost] = useState(matchState.wickets);
+    const [dlsTeam1Score, setDlsTeam1Score] = useState(matchState.innings === 2 ? (matchState.completedInnings[0]?.totalRuns || 100) : 100);
+    const [dlsRevisedTargetResult, setDlsRevisedTargetResult] = useState(null);
     const [selectedExtra, setSelectedExtra] = useState(null);
     const [fielder1, setFielder1] = useState('');
     const [fielder2, setFielder2] = useState('');
@@ -225,6 +237,21 @@ function ScorerBoard({ config }) {
         return player + suffix;
     };
 
+
+    const calculateDLS = () => {
+        const team1Resources = 100; // Team 1 usually used 100% unless their innings was also cut short
+        const team2Resources = getResourcePercentage(dlsOversRemaining, dlsWicketsLost);
+        const revised = calculateRevisedTarget(dlsTeam1Score, team1Resources, team2Resources);
+        setDlsRevisedTargetResult(revised);
+    };
+
+    const applyRevisedTarget = () => {
+        if (dlsRevisedTargetResult) {
+            updateDLS(dlsRevisedTargetResult);
+            setShowDLSModal(false);
+            alert(`Revised Target applied: ${dlsRevisedTargetResult} runs`);
+        }
+    };
 
     return (
         <main style={{
@@ -435,6 +462,244 @@ function ScorerBoard({ config }) {
             )}
 
 
+
+            {/* DLS Modal */}
+            <AnimatePresence>
+                {showDLSModal && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'var(--background)',
+                            zIndex: 6500,
+                            padding: '2rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            overflowY: 'auto',
+                            color: 'var(--foreground)'
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <Trophy size={24} color="var(--primary)" />
+                                <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>DLS Calculator</h2>
+                            </div>
+                            <button className="btn" onClick={() => setShowDLSModal(false)}><X /></button>
+                        </div>
+
+                        <div className="card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '12px' }}>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '0.75rem', opacity: 0.6 }}>Team 1 Total Score</label>
+                                <input
+                                    type="number"
+                                    className="input-field"
+                                    value={dlsTeam1Score}
+                                    onChange={(e) => setDlsTeam1Score(Number(e.target.value))}
+                                    style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.25rem', fontWeight: 700 }}
+                                />
+                            </div>
+
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '12px' }}>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '0.75rem', opacity: 0.6 }}>Overs Remaining for Team 2</label>
+                                <input
+                                    type="number"
+                                    className="input-field"
+                                    value={dlsOversRemaining}
+                                    onChange={(e) => setDlsOversRemaining(Number(e.target.value))}
+                                    style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.25rem', fontWeight: 700 }}
+                                />
+                            </div>
+
+                            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '1rem', borderRadius: '12px' }}>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', display: 'block', marginBottom: '0.75rem', opacity: 0.6 }}>Wickets Lost by Team 2</label>
+                                <select
+                                    className="input-field"
+                                    value={dlsWicketsLost}
+                                    onChange={(e) => setDlsWicketsLost(Number(e.target.value))}
+                                    style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.1rem' }}
+                                >
+                                    {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(w => (
+                                        <option key={w} value={w}>{w} Wickets</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <button
+                                className="btn btn-primary"
+                                onClick={calculateDLS}
+                                style={{ padding: '1.25rem', fontSize: '1.1rem', fontWeight: 800, background: 'linear-gradient(135deg, var(--primary), var(--secondary))' }}
+                            >
+                                Calculate Revised Target
+                            </button>
+
+                            {dlsRevisedTargetResult !== null && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    style={{
+                                        marginTop: '1rem',
+                                        padding: '2rem',
+                                        background: 'rgba(59, 130, 246, 0.1)',
+                                        border: '1px solid rgba(59, 130, 246, 0.2)',
+                                        borderRadius: '20px',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    <p style={{ fontSize: '0.875rem', fontWeight: 700, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '1px' }}>Revised Target Score</p>
+                                    <h3 style={{ fontSize: '3.5rem', fontWeight: 900, color: 'var(--primary)', margin: '0.5rem 0' }}>{dlsRevisedTargetResult}</h3>
+                                    <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent)' }}>
+                                        Resources Available: {getResourcePercentage(dlsOversRemaining, dlsWicketsLost).toFixed(1)}%
+                                    </p>
+
+                                    <button
+                                        className="btn btn-primary"
+                                        onClick={applyRevisedTarget}
+                                        style={{ width: '100%', marginTop: '2rem', padding: '1.25rem', fontSize: '1.1rem', fontWeight: 800 }}
+                                    >
+                                        Apply Revised Target
+                                    </button>
+                                </motion.div>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* More Options Modal */}
+            <AnimatePresence>
+                {showMoreOptions && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 50 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 50 }}
+                        style={{
+                            position: 'fixed',
+                            inset: 0,
+                            background: 'var(--background)',
+                            zIndex: 6000,
+                            padding: '2rem',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}
+                    >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>More Options</h2>
+                            <button className="btn" onClick={() => setShowMoreOptions(false)}><X /></button>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                            <button
+                                className="btn"
+                                style={{
+                                    padding: '1.5rem',
+                                    background: 'var(--card-bg)',
+                                    border: '1px solid var(--card-border)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '1rem',
+                                    fontSize: '1.1rem'
+                                }}
+                                onClick={() => {
+                                    setShowMoreOptions(false);
+                                    setShowDLSModal(true);
+                                }}
+                            >
+                                <Trophy size={24} color="var(--primary)" />
+                                <span>DLS Calculator</span>
+                            </button>
+
+                            <button
+                                className="btn"
+                                style={{
+                                    padding: '1.5rem',
+                                    background: 'var(--card-bg)',
+                                    border: '1px solid var(--card-border)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '1rem',
+                                    fontSize: '1.1rem'
+                                }}
+                                onClick={() => {
+                                    setShowMoreOptions(false);
+                                    generateTransferCode();
+                                }}
+                            >
+                                <RotateCcw size={24} color="var(--accent)" />
+                                <span>Transfer Scoring</span>
+                            </button>
+
+                            <button
+                                className="btn"
+                                style={{
+                                    padding: '1.5rem',
+                                    background: 'rgba(239, 68, 68, 0.1)',
+                                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                                    color: 'var(--error)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '1rem',
+                                    fontSize: '1.1rem'
+                                }}
+                                onClick={() => {
+                                    setShowMoreOptions(false);
+                                    abandonMatch();
+                                }}
+                            >
+                                <XOctagon size={24} />
+                                <span>Abandon Match</span>
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Transfer Code Modal */}
+            <AnimatePresence>
+                {showTransferModal && (
+                    <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.85)',
+                        zIndex: 7000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '2rem'
+                    }}>
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="card"
+                            style={{ maxWidth: '400px', width: '100%', textAlign: 'center', padding: '2.5rem' }}
+                        >
+                            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '1rem' }}>Transfer Scoring</h3>
+                            <p style={{ opacity: 0.7, marginBottom: '2rem' }}>Share this code with the new scorer. It expires in 15 minutes.</p>
+
+                            <div style={{
+                                fontSize: '3rem',
+                                fontWeight: 900,
+                                letterSpacing: '8px',
+                                color: 'var(--primary)',
+                                background: 'rgba(59, 130, 246, 0.1)',
+                                padding: '1.5rem',
+                                borderRadius: '12px',
+                                marginBottom: '2rem'
+                            }}>
+                                {transferCode}
+                            </div>
+
+                            <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setShowTransferModal(false)}>
+                                Done
+                            </button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+
             {/* Top Header */}
             <header style={{
                 padding: '1rem',
@@ -470,6 +735,9 @@ function ScorerBoard({ config }) {
                     </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button className="btn" style={{ padding: '0.5rem', color: 'var(--primary)' }} onClick={() => setShowMoreOptions(true)}>
+                        <Settings2 size={24} />
+                    </button>
                     <button className="btn" style={{ padding: '0.5rem' }} onClick={() => setShowScorecard(true)}>
                         <Info size={20} />
                     </button>
@@ -528,8 +796,8 @@ function ScorerBoard({ config }) {
                     )}
 
                     {/* Run Equation (Second Innings) */}
-                    {matchState.innings === 2 && matchState.completedInnings?.[0] && (() => {
-                        const targetScore = matchState.completedInnings[0].totalRuns + 1;
+                    {matchState.innings === 2 && (matchState.completedInnings?.[0] || matchState.dlsRevisedTarget) && (() => {
+                        const targetScore = matchState.dlsRevisedTarget || (matchState.completedInnings[0].totalRuns + 1);
                         const runsRequired = Math.max(0, targetScore - matchState.totalRuns);
                         const maxBalls = (matchState.maxOvers || 20) * 6;
                         const ballsRemaining = Math.max(0, maxBalls - matchState.balls);

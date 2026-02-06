@@ -29,6 +29,7 @@ export const useScorer = (initialState = {}) => {
             ballsLog: [],
             commentary: [], // Ball-by-ball commentary
             battingOrder: [], // Track order of batters coming to crease
+            dlsRevisedTarget: null, // NEW: DLS Revised Target
             isPaused: true,
             pauseReason: 'INIT',
             lastBowler: null,
@@ -157,6 +158,13 @@ export const useScorer = (initialState = {}) => {
                 overRuns: 0
             };
         });
+    }, []);
+
+    const updateDLS = useCallback((revisedTarget) => {
+        setMatchState(prev => ({
+            ...prev,
+            dlsRevisedTarget: revisedTarget
+        }));
     }, []);
 
     const overs = useMemo(() => {
@@ -697,6 +705,7 @@ export const useScorer = (initialState = {}) => {
         setStriker,
         setNonStriker,
         setBatters,
-        setBowler
+        setBowler,
+        updateDLS
     };
 };
