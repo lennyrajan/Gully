@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, TrendingUp } from 'lucide-react';
+import { Play, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 
 export default function LiveMatchBanner() {
@@ -45,6 +45,18 @@ export default function LiveMatchBanner() {
     const currentMatch = liveMatches[currentIndex];
     const state = currentMatch.state || {};
     const lastEvent = currentMatch.lastEvent || {};
+
+    const goToPrevious = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setCurrentIndex((prev) => (prev - 1 + liveMatches.length) % liveMatches.length);
+    };
+
+    const goToNext = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setCurrentIndex((prev) => (prev + 1) % liveMatches.length);
+    };
 
     return (
         <Link href={`/match/${currentMatch.id}`} style={{ textDecoration: 'none' }}>
@@ -146,26 +158,74 @@ export default function LiveMatchBanner() {
                     </motion.div>
                 </AnimatePresence>
 
-                {/* Carousel Indicators */}
+                {/* Carousel Indicators + Navigation */}
                 {liveMatches.length > 1 && (
                     <div style={{
                         display: 'flex',
-                        gap: '0.5rem',
+                        gap: '1rem',
                         marginTop: '1rem',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        alignItems: 'center'
                     }}>
-                        {liveMatches.map((_, idx) => (
-                            <div
-                                key={idx}
-                                style={{
-                                    width: idx === currentIndex ? '24px' : '8px',
-                                    height: '8px',
-                                    borderRadius: '4px',
-                                    background: idx === currentIndex ? 'white' : 'rgba(255, 255, 255, 0.4)',
-                                    transition: 'all 0.3s ease'
-                                }}
-                            />
-                        ))}
+                        {/* Previous Button */}
+                        <button
+                            onClick={goToPrevious}
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.2)',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '32px',
+                                height: '32px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'white',
+                                transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.3)'}
+                            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
+                        >
+                            <ChevronLeft size={20} />
+                        </button>
+
+                        {/* Indicators */}
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            {liveMatches.map((_, idx) => (
+                                <div
+                                    key={idx}
+                                    style={{
+                                        width: idx === currentIndex ? '24px' : '8px',
+                                        height: '8px',
+                                        borderRadius: '4px',
+                                        background: idx === currentIndex ? 'white' : 'rgba(255, 255, 255, 0.4)',
+                                        transition: 'all 0.3s ease'
+                                    }}
+                                />
+                            ))}
+                        </div>
+
+                        {/* Next Button */}
+                        <button
+                            onClick={goToNext}
+                            style={{
+                                background: 'rgba(255, 255, 255, 0.2)',
+                                border: 'none',
+                                borderRadius: '50%',
+                                width: '32px',
+                                height: '32px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                color: 'white',
+                                transition: 'all 0.2s ease'
+                            }}
+                            onMouseEnter={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.3)'}
+                            onMouseLeave={(e) => e.target.style.background = 'rgba(255, 255, 255, 0.2)'}
+                        >
+                            <ChevronRight size={20} />
+                        </button>
                     </div>
                 )}
             </motion.div>
