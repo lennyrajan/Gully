@@ -14,7 +14,8 @@ import {
     Settings2,
     Info,
     X,
-    Trophy
+    Trophy,
+    ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/AuthProvider';
@@ -83,6 +84,7 @@ function ScorerBoard({ config }) {
     const [selectedPOTM, setSelectedPOTM] = useState(null);
     const [mvps, setMvps] = useState([]);
     const [transferCode, setTransferCode] = useState(null);
+    const [expandedSections, setExpandedSections] = useState({ officials: true, currentInnings: true });
 
     // DLS Modal State
     const [dlsOversRemaining, setDlsOversRemaining] = useState(matchState.maxOvers);
@@ -215,6 +217,7 @@ function ScorerBoard({ config }) {
                     status: 'FINISHED',
                     playerOfTheMatch: selectedPOTM,
                     mvpRankings: mvps,
+                    endTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                     lastUpdated: new Date().toISOString()
                 });
             } catch (error) {
@@ -1137,106 +1140,116 @@ function ScorerBoard({ config }) {
             <AnimatePresence>
                 {showScorecard && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'var(--background)', zIndex: 4000, padding: '1.5rem', overflowY: 'auto' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Full Scorecard</h2>
-                            <button className="btn" onClick={() => setShowScorecard(false)}><X /></button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', position: 'sticky', top: 0, background: 'var(--background)', zIndex: 10, padding: '0.5rem 0' }}>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <Settings2 /> Full Scorecard
+                            </h2>
+                            <button className="btn" onClick={() => setShowScorecard(false)} style={{ background: 'var(--card-border)', padding: '0.5rem' }}><X /></button>
                         </div>
 
-                        <div style={{ marginBottom: '1rem', opacity: 0.5 }}>
-                            <p>Scorer: {matchState.officials?.scorer || matchState.scorerName}</p>
-                            <p>Umpires: {[matchState.officials?.umpires?.umpire1, matchState.officials?.umpires?.umpire2].filter(Boolean).join(', ') || 'None'}</p>
+                        {/* Match Result Header */}
+                        {matchState.isMatchFinished && (
+                            <div style={{ background: 'var(--primary)', color: 'white', padding: '1.5rem', borderRadius: '16px', marginBottom: '1.5rem', textAlign: 'center' }}>
+                                <p style={{ fontSize: '1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', opacity: 0.8, marginBottom: '0.5rem' }}>Result</p>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 900 }}>
+                                    {(() => {
+                                        const team1 = matchState.completedInnings?.[0];
+                                        const team2Runs = matchState.totalRuns;
+                                        const target = (team1 !== undefined && team1 !== null) ? (team1.totalRuns + 1) : null;
+                                        if (target === null) return "Match Complete";
+                                        if (team2Runs >= target) {
+                                            const wicketsLeft = (matchState.maxWickets || 10) - matchState.wickets;
+                                            return `${matchState.battingTeam?.name} won by ${wicketsLeft} wicket${wicketsLeft > 1 ? 's' : ''}`;
+                                        } else {
+                                            const runsDiff = target - team2Runs - 1;
+                                            return `${matchState.bowlingTeam?.name} won by ${runsDiff} run${runsDiff > 1 ? 's' : ''}`;
+                                        }
+                                    })()}
+                                </h3>
+                                {selectedPOTM && (
+                                    <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                                        <Trophy size={16} /> <span>PoTM: <strong>{selectedPOTM}</strong></span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Match Metadata */}
+                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                                <div>
+                                    <p style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 800, textTransform: 'uppercase' }}>Date</p>
+                                    <p style={{ fontWeight: 600 }}>{matchState.matchDate}</p>
+                                </div>
+                                <div>
+                                    <p style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 800, textTransform: 'uppercase' }}>Status</p>
+                                    <p style={{ fontWeight: 600, color: matchState.isMatchFinished ? 'var(--primary)' : 'var(--accent)' }}>
+                                        {matchState.isMatchFinished ? 'FINISHED' : matchState.status || 'LIVE'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 800, textTransform: 'uppercase' }}>Started</p>
+                                    <p style={{ fontWeight: 600 }}>{matchState.startTime}</p>
+                                </div>
+                                {matchState.endTime && (
+                                    <div>
+                                        <p style={{ fontSize: '0.7rem', opacity: 0.5, fontWeight: 800, textTransform: 'uppercase' }}>Finished</p>
+                                        <p style={{ fontWeight: 600 }}>{matchState.endTime}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div
+                                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', borderTop: '1px solid var(--card-border)', paddingTop: '0.75rem' }}
+                                onClick={() => setExpandedSections(prev => ({ ...prev, officials: !prev.officials }))}
+                            >
+                                <span style={{ fontSize: '0.75rem', fontWeight: 800, opacity: 0.6 }}>OFFICIALS</span>
+                                <motion.div animate={{ rotate: expandedSections.officials ? 180 : 0 }}>
+                                    <ChevronDown size={16} />
+                                </motion.div>
+                            </div>
+
+                            <AnimatePresence>
+                                {expandedSections.officials && (
+                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
+                                        <div style={{ paddingTop: '0.75rem', fontSize: '0.9rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            <p style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <span style={{ opacity: 0.5 }}>Scorer:</span>
+                                                <span style={{ fontWeight: 600 }}>{matchState.officials?.scorer || matchState.scorerName}</span>
+                                            </p>
+                                            <p style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <span style={{ opacity: 0.5 }}>Umpires:</span>
+                                                <span style={{ fontWeight: 600 }}>{[matchState.officials?.umpires?.umpire1, matchState.officials?.umpires?.umpire2].filter(Boolean).join(', ') || 'None'}</span>
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         {/* Completed Innings */}
-                        {matchState.completedInnings?.map((inn) => (
-                            <div key={inn.inningsNum} style={{ marginBottom: '3rem', borderBottom: '1px dashed var(--card-border)', paddingBottom: '2rem' }}>
-                                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between' }}>
-                                    <span>Innings {inn.inningsNum}: {inn.battingTeam}</span>
-                                    <span>{inn.totalRuns}/{inn.wickets}</span>
-                                </h2>
-
-                                <h3 style={{ fontSize: '1rem', fontWeight: 700, opacity: 0.7, marginBottom: '1rem' }}>Batting</h3>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)', marginBottom: '1.5rem' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>
-                                        <span>BATTER</span><span>R</span><span>B</span><span>SR</span>
-                                    </div>
-                                    {Object.entries(inn.scorecard.batting).map(([name, stats]) => (
-                                        <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.9rem' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                                <span style={{ fontWeight: 600 }}>{name}</span>
-                                                <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{stats.dismissal || 'not out'}</span>
-                                            </div>
-                                            <span>{stats.runs}</span><span>{stats.balls}</span><span>{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0'}</span>
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <h3 style={{ fontSize: '1rem', fontWeight: 700, opacity: 0.7, marginBottom: '1rem' }}>Bowling</h3>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)' }}>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr 1.5fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.65rem', fontWeight: 700, opacity: 0.5 }}>
-                                        <span>BOWLER</span><span>O</span><span>M</span><span>DOTS</span><span>R</span><span>W</span><span>ER</span>
-                                    </div>
-                                    {Object.entries(inn.scorecard.bowling).map(([name, stats]) => (
-                                        <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr 1.5fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.85rem' }}>
-                                            <span style={{ fontWeight: 600 }}>{name}</span>
-                                            <span>{stats.overs}</span><span>{stats.maidens}</span><span>{stats.dots}</span><span>{stats.runs}</span><span>{stats.wickets}</span><span>{stats.economy || '0.00'}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                <p style={{ fontSize: '0.875rem', opacity: 0.6, marginTop: '1rem' }}>
-                                    Extras: {Object.values(inn.extras || {}).reduce((a, b) => a + b, 0)}
-                                </p>
-                            </div>
+                        {matchState.completedInnings?.map((inn, idx) => (
+                            <InningsCard
+                                key={inn.inningsNum}
+                                inn={inn}
+                                isDefaultExpanded={matchState.isMatchFinished && idx === 0}
+                            />
                         ))}
 
                         {/* Current Innings */}
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between' }}>
-                            <span>Innings {matchState.innings}: {matchState.battingTeam.name}</span>
-                            <span>{matchState.totalRuns}/{matchState.wickets}</span>
-                        </h2>
-
-                        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>Batting</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)', marginBottom: '2rem' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>
-                                <span>BATTER</span><span>R</span><span>B</span><span>SR</span>
-                            </div>
-                            {Object.entries(matchState.scorecard.batting).map(([name, stats]) => (
-                                <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.9rem' }}>
-                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                        <span style={{ fontWeight: 600 }}>{getPlayerDisplayName(name, 'batting')}</span>
-                                        <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{stats.dismissal || 'not out'}</span>
-                                    </div>
-                                    <span>{stats.runs}</span><span>{stats.balls}</span><span>{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0'}</span>
-                                </div>
-                            ))}
-                        </div>
-
-                        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent)', marginBottom: '1rem' }}>{matchState.bowlingTeam.name} Bowling</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr 1.5fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.65rem', fontWeight: 700, opacity: 0.5 }}>
-                                <span>BOWLER</span><span>O</span><span>M</span><span>DOTS</span><span>R</span><span>W</span><span>ER</span>
-                            </div>
-                            {Object.entries(matchState.scorecard.bowling).map(([name, stats]) => (
-                                <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr 1.5fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.85rem' }}>
-                                    <span style={{ fontWeight: 600 }}>{getPlayerDisplayName(name, 'bowling')}</span>
-                                    <span>{stats.overs}</span>
-                                    <span>{stats.maidens}</span>
-                                    <span>{stats.dots}</span>
-                                    <span>{stats.runs}</span>
-                                    <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{stats.wickets}</span>
-                                    <span style={{ opacity: 0.7 }}>{stats.economy || '0.00'}</span>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div style={{ marginTop: '2rem', padding: '1.5rem', background: 'var(--card-bg)', borderRadius: '12px', border: '1px solid var(--primary)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.25rem', fontWeight: 800 }}>
-                                <span>TOTAL</span><span>{matchState.totalRuns}/{matchState.wickets}</span>
-                            </div>
-                            <p style={{ fontSize: '0.875rem', opacity: 0.6, marginTop: '0.5rem' }}>
-                                Extras: {Object.values(matchState.extras).reduce((a, b) => a + b, 0)}
-                            </p>
-                        </div>
+                        <InningsCard
+                            inn={{
+                                inningsNum: matchState.innings,
+                                battingTeam: matchState.battingTeam.name,
+                                bowlingTeamName: matchState.bowlingTeam.name,
+                                totalRuns: matchState.totalRuns,
+                                wickets: matchState.wickets,
+                                overs: overs,
+                                scorecard: matchState.scorecard,
+                                extras: matchState.extras
+                            }}
+                            isDefaultExpanded={true}
+                        />
                     </motion.div>
                 )}
             </AnimatePresence>
@@ -1469,5 +1482,75 @@ function ScorerBoard({ config }) {
                 )}
             </AnimatePresence>
         </main>
+    );
+}
+
+function InningsCard({ inn, isDefaultExpanded }) {
+    const [isExpanded, setIsExpanded] = useState(isDefaultExpanded);
+
+    return (
+        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '16px', padding: '1.25rem', marginBottom: '1.5rem' }}>
+            <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--primary)' }}>
+                        Innings {inn.inningsNum}: {inn.battingTeam}
+                    </h3>
+                    <p style={{ fontSize: '0.85rem', opacity: 0.6, fontWeight: 700 }}>
+                        {inn.totalRuns}/{inn.wickets} ({inn.overs} ov)
+                    </p>
+                </div>
+                <motion.div animate={{ rotate: isExpanded ? 180 : 0 }}>
+                    <ChevronDown size={20} />
+                </motion.div>
+            </div>
+
+            <AnimatePresence>
+                {isExpanded && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} style={{ overflow: 'hidden' }}>
+                        <div style={{ marginTop: '1.5rem' }}>
+                            <h4 style={{ fontSize: '0.85rem', fontWeight: 800, opacity: 0.5, marginBottom: '1rem', textTransform: 'uppercase' }}>Batting</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)', marginBottom: '1.5rem', borderRadius: '12px', overflow: 'hidden' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'rgba(255,255,255,0.05)', padding: '0.75rem', fontSize: '0.7rem', fontWeight: 700, opacity: 0.5 }}>
+                                    <span>BATTER</span><span>R</span><span>B</span><span>SR</span>
+                                </div>
+                                {Object.entries(inn.scorecard.batting).map(([name, stats]) => (
+                                    <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.85rem', borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ fontWeight: 600 }}>{name}</span>
+                                            <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{stats.dismissal || 'not out'}</span>
+                                        </div>
+                                        <span>{stats.runs}</span><span>{stats.balls}</span><span>{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0'}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <h4 style={{ fontSize: '0.85rem', fontWeight: 800, opacity: 0.5, marginBottom: '1rem', textTransform: 'uppercase' }}>Bowling</h4>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)', borderRadius: '12px', overflow: 'hidden' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr', background: 'rgba(255,255,255,0.05)', padding: '0.75rem', fontSize: '0.65rem', fontWeight: 700, opacity: 0.5 }}>
+                                    <span>BOWLER</span><span>O-M-R-W</span><span>DOTS</span><span>Wd/NB</span><span>ER</span>
+                                </div>
+                                {Object.entries(inn.scorecard.bowling).map(([name, stats]) => (
+                                    <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.8rem', borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
+                                        <span style={{ fontWeight: 600 }}>{name}</span>
+                                        <span style={{ fontWeight: 700 }}>{stats.overs}-{stats.maidens}-{stats.runs}-{stats.wickets}</span>
+                                        <span>{stats.dots}</span>
+                                        <span>{stats.wides || 0}/{stats.noBalls || 0}</span>
+                                        <span style={{ opacity: 0.7 }}>{stats.economy || '0.00'}</span>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <div style={{ marginTop: '1rem', padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <span style={{ opacity: 0.5 }}>Extras:</span>
+                                <strong>{Object.values(inn.extras || {}).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0)}</strong>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
 }

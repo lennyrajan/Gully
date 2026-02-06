@@ -35,6 +35,9 @@ export const useScorer = (initialState = {}) => {
             lastBowler: null,
             overRuns: 0,
             innings: 1, // Current innings tracking
+            matchDate: initialState.matchDate || new Date().toLocaleDateString(),
+            startTime: initialState.startTime || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            endTime: initialState.endTime || null,
             ...cleanInitial,
             matchId: initialState.matchId || null
         };

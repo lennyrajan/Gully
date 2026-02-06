@@ -58,7 +58,14 @@ export default function MatchSetup() {
             }
         };
         loadTeams();
-    }, []);
+
+        if (currentUser) {
+            setMatchConfig(prev => ({
+                ...prev,
+                scorerName: currentUser.displayName || currentUser.email?.split('@')[0] || ''
+            }));
+        }
+    }, [currentUser]);
 
     const handlePlayerChange = (team, index, value) => {
         setMatchConfig(prev => ({
