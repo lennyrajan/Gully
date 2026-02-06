@@ -282,7 +282,7 @@ export default function Home() {
                       {/* Match Status Badge */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{
-                          background: match.status === 'live' ? 'var(--error)' : 'var(--success)',
+                          background: match.status?.toUpperCase() === 'LIVE' ? 'var(--error)' : 'var(--success)',
                           color: 'white',
                           padding: '0.25rem 0.75rem',
                           borderRadius: '12px',
@@ -290,7 +290,7 @@ export default function Home() {
                           fontWeight: 700,
                           textTransform: 'uppercase'
                         }}>
-                          {match.status === 'live' ? '🔴 Live' : '✓ Completed'}
+                          {match.status?.toUpperCase() === 'LIVE' ? '🔴 Live' : '✓ Completed'}
                         </span>
                         <ChevronRight size={20} opacity={0.5} />
                       </div>

@@ -28,6 +28,7 @@ export const useScorer = (initialState = {}) => {
             completedInnings: [], // Preserve multi-innings history
             ballsLog: [],
             commentary: [], // Ball-by-ball commentary
+            battingOrder: [], // Track order of batters coming to crease
             isPaused: true,
             pauseReason: 'INIT',
             lastBowler: null,
@@ -95,9 +96,13 @@ export const useScorer = (initialState = {}) => {
     const setStriker = useCallback((name) => {
         setMatchState(prev => {
             if (name && name === prev.nonStriker) return prev;
+            const newBattingOrder = name && !prev.battingOrder.includes(name)
+                ? [...prev.battingOrder, name]
+                : prev.battingOrder;
             return {
                 ...prev,
                 striker: name,
+                battingOrder: newBattingOrder,
                 isPaused: !name || !prev.nonStriker || !prev.bowler
             };
         });
@@ -106,9 +111,13 @@ export const useScorer = (initialState = {}) => {
     const setNonStriker = useCallback((name) => {
         setMatchState(prev => {
             if (name && name === prev.striker) return prev;
+            const newBattingOrder = name && !prev.battingOrder.includes(name)
+                ? [...prev.battingOrder, name]
+                : prev.battingOrder;
             return {
                 ...prev,
                 nonStriker: name,
+                battingOrder: newBattingOrder,
                 isPaused: !prev.striker || !name || !prev.bowler
             };
         });

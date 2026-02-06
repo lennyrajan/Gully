@@ -284,7 +284,10 @@ export default function MatchScorecard() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {Object.entries(state.scorecard.batting).map(([playerName, stats], idx) => {
+                                    {(state.battingOrder || Object.keys(state.scorecard.batting)).map((playerName, idx) => {
+                                        const stats = state.scorecard.batting[playerName];
+                                        if (!stats) return null; // Skip if no stats
+
                                         const strikeRate = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0';
                                         const isOnStrike = playerName === state.striker;
 
