@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/lib/ThemeProvider';
 import { useAuth } from '@/lib/AuthProvider';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, limit, getDocs, where, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, where, onSnapshot, doc, updateDoc, or } from 'firebase/firestore';
 import {
   Trophy,
   Calendar,
@@ -39,14 +39,39 @@ export default function Home() {
 
     const fetchActiveMatches = async () => {
       try {
-        const q = query(
-          collection(db, 'matches'),
-          where('deviceId', '==', id),
-          where('status', '==', 'LIVE'),
-          orderBy('lastUpdated', 'desc')
-        );
+        const matchesRef = collection(db, 'matches');
+        let q;
+
+        // Broaden status check to include innings breaks and pauses
+        const activeStatuses = ['LIVE', 'live', 'INNINGS_BREAK', 'PAUSED'];
+
+        if (currentUser) {
+          // If logged in, show matches created by this user OR on this device
+          q = query(
+            matchesRef,
+            where('status', 'in', activeStatuses),
+            or(
+              where('deviceId', '==', id),
+              where('createdBy', '==', currentUser.uid),
+              where('scorerId', '==', currentUser.uid)
+            )
+          );
+        } else {
+          // Otherwise, just stick to the device pinning
+          q = query(
+            matchesRef,
+            where('deviceId', '==', id),
+            where('status', 'in', activeStatuses)
+          );
+        }
+
         const snapshot = await getDocs(q);
-        setActiveMatches(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        let matches = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Manual sort since composite indices might be missing or complex queries used
+        matches.sort((a, b) => new Date(b.lastUpdated || b.createdAt) - new Date(a.lastUpdated || a.createdAt));
+
+        setActiveMatches(matches);
       } catch (err) {
         console.error("Error fetching active matches:", err);
       }
