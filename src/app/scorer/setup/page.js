@@ -25,6 +25,9 @@ export default function MatchSetup() {
         umpires: ''
     });
 
+    const [tossResult, setTossResult] = useState({ winner: '', choice: '' }); // winner: 'teamA' or 'teamB', choice: 'bat' or 'bowl'
+    const [isFlipping, setIsFlipping] = useState(false);
+
     const handlePlayerChange = (team, index, value) => {
         setMatchConfig(prev => ({
             ...prev,
@@ -46,12 +49,39 @@ export default function MatchSetup() {
         return matchConfig[team].players.every(p => p.trim() !== '');
     };
 
+    const runToss = () => {
+        setIsFlipping(true);
+        setTimeout(() => {
+            const winner = Math.random() > 0.5 ? 'teamA' : 'teamB';
+            setTossResult({ winner, choice: '' });
+            setIsFlipping(false);
+        }, 1500);
+    };
+
     const startMatch = () => {
         if (!isSquadComplete('teamA') || !isSquadComplete('teamB')) {
             alert('Please fill in all player names for both squads.');
             return;
         }
-        localStorage.setItem('currentMatchConfig', JSON.stringify(matchConfig));
+
+        // Determine who bats first based on toss
+        let finalConfig = { ...matchConfig };
+        const tossWinner = tossResult.winner;
+        const choice = tossResult.choice;
+
+        const teamA_Name = matchConfig.teamA.name;
+        const teamB_Name = matchConfig.teamB.name;
+
+        // If Team A won and chose Bat OR Team B won and chose Bowl -> Team A bats first
+        const teamAbatsFirst = (tossWinner === 'teamA' && choice === 'bat') || (tossWinner === 'teamB' && choice === 'bowl');
+
+        if (!teamAbatsFirst) {
+            // Swap teams so teamA is always the batting first team in currentMatchConfig
+            finalConfig.teamA = matchConfig.teamB;
+            finalConfig.teamB = matchConfig.teamA;
+        }
+
+        localStorage.setItem('currentMatchConfig', JSON.stringify(finalConfig));
         router.push('/scorer');
     };
 
@@ -79,7 +109,7 @@ export default function MatchSetup() {
 
             <div style={{ padding: '1.5rem' }}>
                 <div style={{ display: 'flex', gap: '4px', marginBottom: '2rem' }}>
-                    {[1, 2, 3, 4].map(s => (
+                    {[1, 2, 3, 4, 5].map(s => (
                         <div key={s} style={{
                             flex: 1,
                             height: '4px',
@@ -97,7 +127,7 @@ export default function MatchSetup() {
                             <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Team A (Batting First)</label>
+                                        <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Team A</label>
                                         <input
                                             type="text"
                                             value={matchConfig.teamA.name}
@@ -107,7 +137,7 @@ export default function MatchSetup() {
                                         />
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Team B (Bowling First)</label>
+                                        <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Team B</label>
                                         <input
                                             type="text"
                                             value={matchConfig.teamB.name}
@@ -188,25 +218,111 @@ export default function MatchSetup() {
                                 <button className="btn btn-primary" style={{ flex: 2, padding: '1rem' }} onClick={() => {
                                     if (isSquadComplete(step === 2 ? 'teamA' : 'teamB')) setStep(step + 1);
                                     else alert('Please enter all 11 players.');
-                                }}>{step === 2 ? `Next: ${matchConfig.teamB.name} Squad` : 'Review & Start'}</button>
+                                }}>{step === 2 ? `Next: ${matchConfig.teamB.name} Squad` : 'Next: Coin Toss'}</button>
                             </div>
                         </motion.div>
                     )}
 
                     {step === 4 && (
-                        <motion.div key="step4" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+                        <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} style={{ textAlign: 'center' }}>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '2rem' }}>Coin Toss</h2>
+
+                            <div style={{ position: 'relative', height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2rem' }}>
+                                <motion.div
+                                    animate={isFlipping ? {
+                                        rotateY: [0, 180, 360, 540, 720, 900, 1080],
+                                        y: [0, -100, 0]
+                                    } : { rotateY: 0, y: 0 }}
+                                    transition={{ duration: 1.5, ease: "easeInOut" }}
+                                    style={{
+                                        width: '80px',
+                                        height: '80px',
+                                        borderRadius: '50%',
+                                        background: 'linear-gradient(45deg, #ffd700, #ff8c00)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'white',
+                                        fontSize: '1.5rem',
+                                        fontWeight: 900,
+                                        boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
+                                        border: '4px solid rgba(255,255,255,0.3)'
+                                    }}
+                                >
+                                    {isFlipping ? '?' : 'G'}
+                                </motion.div>
+                            </div>
+
+                            {!tossResult.winner && !isFlipping && (
+                                <button className="btn btn-primary" style={{ width: '100%', padding: '1.25rem' }} onClick={runToss}>
+                                    Flip the Coin!
+                                </button>
+                            )}
+
+                            {tossResult.winner && !isFlipping && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1.5rem', borderRadius: '16px', marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
+                                        <p style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                                            {matchConfig[tossResult.winner].name} WON the toss!
+                                        </p>
+                                    </div>
+
+                                    <p style={{ opacity: 0.6, marginBottom: '1rem' }}>What did they choose?</p>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                        <button
+                                            className={`btn ${tossResult.choice === 'bat' ? 'btn-primary' : ''}`}
+                                            style={{ padding: '1rem', border: '1px solid var(--card-border)' }}
+                                            onClick={() => setTossResult({ ...tossResult, choice: 'bat' })}
+                                        >
+                                            BAT
+                                        </button>
+                                        <button
+                                            className={`btn ${tossResult.choice === 'bowl' ? 'btn-primary' : ''}`}
+                                            style={{ padding: '1rem', border: '1px solid var(--card-border)' }}
+                                            onClick={() => setTossResult({ ...tossResult, choice: 'bowl' })}
+                                        >
+                                            BOWL
+                                        </button>
+                                    </div>
+
+                                    {tossResult.choice && (
+                                        <button className="btn btn-primary" style={{ width: '100%', marginTop: '2rem', padding: '1.25rem' }} onClick={() => setStep(5)}>
+                                            Continue to Confirmation
+                                        </button>
+                                    )}
+                                </motion.div>
+                            )}
+
+                            <button className="btn" style={{ marginTop: '1rem', opacity: 0.5 }} onClick={() => setStep(3)}>Back</button>
+                        </motion.div>
+                    )}
+
+                    {step === 5 && (
+                        <motion.div key="step5" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
                             <div style={{ textAlign: 'center', padding: '2rem 0' }}>
                                 <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
                                     <Trophy size={40} />
                                 </div>
-                                <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Confirm Match</h2>
-                                <p style={{ opacity: 0.6, marginTop: '0.5rem' }}>
-                                    {matchConfig.teamA.name} vs {matchConfig.teamB.name}<br />
-                                    {matchConfig.maxOvers} Overs • {matchConfig.maxWickets} Wickets
-                                </p>
+                                <h2 style={{ fontSize: '1.75rem', fontWeight: 800 }}>Ready to Play!</h2>
+                                <div className="card" style={{ marginTop: '1.5rem', textAlign: 'left' }}>
+                                    <p style={{ fontSize: '0.875rem', opacity: 0.6 }}>Match Summary:</p>
+                                    <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                        <p><strong>Batting First:</strong> {
+                                            (tossResult.winner === 'teamA' && tossResult.choice === 'bat') || (tossResult.winner === 'teamB' && tossResult.choice === 'bowl')
+                                                ? matchConfig.teamA.name
+                                                : matchConfig.teamB.name
+                                        }</p>
+                                        <p><strong>Bowling First:</strong> {
+                                            (tossResult.winner === 'teamA' && tossResult.choice === 'bat') || (tossResult.winner === 'teamB' && tossResult.choice === 'bowl')
+                                                ? matchConfig.teamB.name
+                                                : matchConfig.teamA.name
+                                        }</p>
+                                        <p><strong>Overs/Wickets:</strong> {matchConfig.maxOvers} Ov / {matchConfig.maxWickets} Wkts</p>
+                                    </div>
+                                </div>
                             </div>
                             <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
-                                <button className="btn" style={{ flex: 1 }} onClick={() => setStep(3)}>Edit Squads</button>
+                                <button className="btn" style={{ flex: 1 }} onClick={() => setStep(4)}>Edit Toss</button>
                                 <button className="btn btn-primary" style={{ flex: 2, padding: '1.25rem' }} onClick={startMatch}>Start Scoring</button>
                             </div>
                         </motion.div>

@@ -140,34 +140,52 @@ function ScorerBoard({ config }) {
                     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                         {(!matchState.striker || matchState.pauseReason === 'WICKET') && (
                             <div>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>Select Striker</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--primary)' }}>Select Striker</label>
+                                <select
+                                    className="input-field"
+                                    style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.1rem' }}
+                                    onChange={(e) => setStriker(e.target.value)}
+                                    value={matchState.striker || ''}
+                                >
+                                    <option value="" disabled>Choose Striker...</option>
                                     {(getAvailableBatters().length > 0 ? getAvailableBatters() : ['Batter 1', 'Batter 2']).map(p => (
-                                        <button key={p} className="btn" style={{ background: 'var(--card-bg)', padding: '1rem', border: '1px solid var(--card-border)' }} onClick={() => setStriker(p)}>{p}</button>
+                                        <option key={p} value={p}>{p}</option>
                                     ))}
-                                </div>
+                                </select>
                             </div>
                         )}
 
                         {(!matchState.nonStriker && matchState.pauseReason === 'INIT') && (
                             <div>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>Select Non-Striker</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--primary)' }}>Select Non-Striker</label>
+                                <select
+                                    className="input-field"
+                                    style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.1rem' }}
+                                    onChange={(e) => setNonStriker(e.target.value)}
+                                    value={matchState.nonStriker || ''}
+                                >
+                                    <option value="" disabled>Choose Non-Striker...</option>
                                     {(getAvailableBatters().map(p => (
-                                        <button key={p} className="btn" style={{ background: 'var(--card-bg)', padding: '1rem', border: '1px solid var(--card-border)' }} onClick={() => setNonStriker(p)}>{p}</button>
+                                        <option key={p} value={p}>{p}</option>
                                     )))}
-                                </div>
+                                </select>
                             </div>
                         )}
 
                         {(!matchState.bowler || matchState.pauseReason === 'OVER' || matchState.pauseReason === 'INIT') && (
                             <div>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>Select Bowler</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--accent)' }}>Select Bowler</label>
+                                <select
+                                    className="input-field"
+                                    style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.1rem' }}
+                                    onChange={(e) => setBowler(e.target.value)}
+                                    value={matchState.bowler || ''}
+                                >
+                                    <option value="" disabled>Choose Bowler...</option>
                                     {(getAvailableBowlers().length > 0 ? getAvailableBowlers() : ['Bowler 1', 'Bowler 2']).map(p => (
-                                        <button key={p} className="btn" style={{ background: 'var(--primary)', color: 'white', padding: '1rem' }} onClick={() => setBowler(p)}>{p}</button>
+                                        <option key={p} value={p}>{p}</option>
                                     ))}
-                                </div>
+                                </select>
                             </div>
                         )}
                     </div>
