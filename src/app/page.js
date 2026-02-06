@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/lib/ThemeProvider';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/AuthProvider';
 import { db } from '@/lib/firebase';
 import { collection, query, orderBy, limit, getDocs, where, onSnapshot, doc, updateDoc, or } from 'firebase/firestore';
@@ -22,6 +23,7 @@ import LiveMatchBanner from '@/components/LiveMatchBanner';
 import { getDeviceId } from '@/lib/utils';
 
 export default function Home() {
+  const router = useRouter();
   const { clubSettings } = useTheme();
   const { currentUser, userProfile, signInWithGoogle, signOut } = useAuth();
   const [recentMatches, setRecentMatches] = useState([]);
