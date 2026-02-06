@@ -71,15 +71,26 @@ export default function PlayerProfile() {
             let totalBalls = 2482 / (138.4 / 100);
 
             history.forEach(match => {
-                const myStats = match.scorecard.batting['Lenny Rajan'];
-                if (myStats) {
-                    newRuns += myStats.runs;
-                    totalBalls += myStats.balls;
+                // Handle new format with inningsHistory
+                if (match.inningsHistory && Array.isArray(match.inningsHistory)) {
+                    match.inningsHistory.forEach(innings => {
+                        if (innings.scorecard?.batting) {
+                            const myStats = innings.scorecard.batting['Lenny Rajan'];
+                            if (myStats) {
+                                newRuns += myStats.runs;
+                                totalBalls += myStats.balls;
+                            }
+                        }
+                    });
                 }
-                // Check if I was bowling (simulated for now)
-                Object.values(match.scorecard.bowling).forEach(bowler => {
-                    // Logic would go here if we tracked specific bowlers
-                });
+                // Fallback to old format
+                else if (match.scorecard?.batting) {
+                    const myStats = match.scorecard.batting['Lenny Rajan'];
+                    if (myStats) {
+                        newRuns += myStats.runs;
+                        totalBalls += myStats.balls;
+                    }
+                }
             });
 
             setStats({
@@ -253,7 +264,23 @@ export default function PlayerProfile() {
                             </h3>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '2rem' }}>
                                 {stats.history.slice(-3).reverse().map((match, i) => {
-                                    const myMatchStats = match.scorecard.batting[userProfile?.displayName || 'Player'];
+                                    // Find player stats in new format (inningsHistory)
+                                    let myMatchStats = null;
+                                    if (match.inningsHistory && Array.isArray(match.inningsHistory)) {
+                                        for (const innings of match.inningsHistory) {
+                                            if (innings.scorecard?.batting) {
+                                                const stats = innings.scorecard.batting[userProfile?.displayName || 'Player'];
+                                                if (stats) {
+                                                    myMatchStats = stats;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    // Fallback to old format
+                                    else if (match.scorecard?.batting) {
+                                        myMatchStats = match.scorecard.batting[userProfile?.displayName || 'Player'];
+                                    }
                                     return (
                                         <div key={i} className="card" style={{ padding: '1rem' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
