@@ -598,7 +598,12 @@ export default function Home() {
                             className="btn btn-primary"
                             style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
                             onClick={() => {
-                              localStorage.setItem('currentMatchConfig', JSON.stringify({ ...match, matchId: match.id }));
+                              // Spread match.state to ensure scoring progress is restored
+                              localStorage.setItem('currentMatchConfig', JSON.stringify({
+                                ...match,
+                                ...match.state,
+                                matchId: match.id
+                              }));
                               router.push('/scorer');
                             }}
                           >
@@ -663,7 +668,12 @@ export default function Home() {
                               alert("Code has expired.");
                             } else {
                               // Success!
-                              const config = { ...matchData, matchId: matchDoc.id, deviceId };
+                              const config = {
+                                ...matchData,
+                                ...matchData.state,
+                                matchId: matchDoc.id,
+                                deviceId
+                              };
                               await updateDoc(doc(db, 'matches', matchDoc.id), {
                                 deviceId: deviceId,
                                 lastUpdated: new Date().toISOString(),
