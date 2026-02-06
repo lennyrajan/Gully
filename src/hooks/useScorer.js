@@ -258,7 +258,7 @@ export const useScorer = (initialState = {}) => {
     const addBall = useCallback((ballData) => {
         setMatchState(prev => {
             // Strict guard: No scoring if paused, missing key players, or match finished
-            if (prev.isPaused || !prev.bowler || !prev.striker || !prev.nonStriker || prev.isMatchFinished || prev.isInningsComplete) {
+            if (prev.isPaused || !prev.bowler || !prev.striker || !prev.nonStriker || prev.isMatchFinished) {
                 return prev;
             }
 
