@@ -250,12 +250,15 @@ export const useScorer = (initialState = {}) => {
                 outBatterStats.dismissal = dismissalText;
                 newState.ballsLog = [...newState.ballsLog.slice(0, -1), 'W'];
 
+                // Only pause for new batter if we haven't reached max wickets
+                // If we've reached 10 wickets, innings is over - no need to select new batter
                 if (newState.wickets < newState.maxWickets) {
                     newState.isPaused = true;
                     newState.pauseReason = 'WICKET';
                     if (isStrikerOut) newState.striker = null;
                     else newState.nonStriker = null;
                 }
+                // If wickets === maxWickets, innings is over, don't pause for batter
             }
 
             const bOvers = Math.floor(currentBowler.balls / 6);
