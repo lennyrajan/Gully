@@ -33,15 +33,31 @@ export function AuthProvider({ children }) {
                 if (userSnap.exists()) {
                     setUserProfile(userSnap.data());
                 } else {
-                    // Create new user profile
+                    // Create new user profile with enhanced schema
                     const newProfile = {
                         email: user.email,
                         displayName: user.displayName || user.email?.split('@')[0],
                         photoURL: user.photoURL || null,
-                        tenantId: 'pvcc', // Default tenant, can be updated
-                        role: 'member', // Default role
+
+                        // Role & Team Info
+                        role: 'player', // Default role: 'super_admin' | 'team_admin' | 'player' | 'guest'
+                        teams: [], // Array of team IDs user belongs to
+                        primaryTeamId: null,
+
+                        // Cricket Profile
+                        cricketProfile: {
+                            playerRole: null, // 'batsman' | 'bowler' | 'all-rounder' | 'wicketkeeper'
+                            battingStyle: null, // 'right-hand' | 'left-hand'
+                            bowlingStyle: null, // Various bowling styles
+                            dateOfBirth: null,
+                            gender: null, // 'male' | 'female' | 'other'
+                            jerseyNumber: null
+                        },
+
+                        // Metadata
                         createdAt: new Date().toISOString(),
-                        lastLogin: new Date().toISOString()
+                        lastLogin: new Date().toISOString(),
+                        isActive: true
                     };
 
                     await setDoc(userRef, newProfile);
@@ -85,15 +101,31 @@ export function AuthProvider({ children }) {
         try {
             const result = await createUserWithEmailAndPassword(auth, email, password);
 
-            // Create user profile
+            // Create user profile with enhanced schema
             const newProfile = {
                 email,
                 displayName: displayName || email.split('@')[0],
                 photoURL: null,
-                tenantId: 'pvcc',
-                role: 'member',
+
+                // Role & Team Info
+                role: 'player',
+                teams: [],
+                primaryTeamId: null,
+
+                // Cricket Profile
+                cricketProfile: {
+                    playerRole: null,
+                    battingStyle: null,
+                    bowlingStyle: null,
+                    dateOfBirth: null,
+                    gender: null,
+                    jerseyNumber: null
+                },
+
+                // Metadata
                 createdAt: new Date().toISOString(),
-                lastLogin: new Date().toISOString()
+                lastLogin: new Date().toISOString(),
+                isActive: true
             };
 
             await setDoc(doc(db, 'users', result.user.uid), newProfile);
@@ -112,6 +144,64 @@ export function AuthProvider({ children }) {
         }
     };
 
+    // Helper function to update user profile
+    const updateUserProfile = async (userId, updates) => {
+        try {
+            const userRef = doc(db, 'users', userId);
+            await setDoc(userRef, updates, { merge: true });
+
+            // Update local state if updating current user
+            if (userId === currentUser?.uid) {
+                const updatedSnap = await getDoc(userRef);
+                setUserProfile(updatedSnap.data());
+            }
+        } catch (error) {
+            console.error('Error updating user profile:', error);
+            throw error;
+        }
+    };
+
+    // Helper function to check if user has specific permission
+    const checkPermission = (permission) => {
+        if (!userProfile) return false;
+
+        const PERMISSIONS = {
+            CREATE_TEAM: ['super_admin'],
+            MANAGE_TEAM: ['super_admin', 'team_admin'],
+            APPROVE_PLAYERS: ['super_admin', 'team_admin'],
+            ADD_GUEST_PLAYERS: ['super_admin', 'team_admin'],
+            CREATE_MATCH: ['super_admin', 'team_admin', 'player'],
+            SCORE_MATCH: ['super_admin', 'team_admin', 'player'],
+            CREATE_POST: ['super_admin', 'team_admin', 'player'],
+            CREATE_FINE: ['super_admin', 'team_admin'],
+            EDIT_OWN_PROFILE: ['super_admin', 'team_admin', 'player', 'guest'],
+            VIEW_PROFILES: ['super_admin', 'team_admin', 'player', 'guest']
+        };
+
+        return PERMISSIONS[permission]?.includes(userProfile.role) || false;
+    };
+
+    // Helper function to check if user is admin of specific team
+    const isTeamAdmin = async (teamId) => {
+        if (!currentUser || !userProfile) return false;
+        if (userProfile.role === 'super_admin') return true;
+        if (userProfile.role !== 'team_admin') return false;
+
+        try {
+            const teamRef = doc(db, 'teams', teamId);
+            const teamSnap = await getDoc(teamRef);
+
+            if (teamSnap.exists()) {
+                const teamData = teamSnap.data();
+                return teamData.adminIds?.includes(currentUser.uid) || false;
+            }
+            return false;
+        } catch (error) {
+            console.error('Error checking team admin status:', error);
+            return false;
+        }
+    };
+
     const value = {
         currentUser,
         userProfile,
@@ -119,7 +209,10 @@ export function AuthProvider({ children }) {
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,
-        signOut
+        signOut,
+        updateUserProfile,
+        checkPermission,
+        isTeamAdmin
     };
 
     return (
