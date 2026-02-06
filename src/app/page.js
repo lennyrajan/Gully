@@ -1,7 +1,10 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/lib/ThemeProvider';
+import { useAuth } from '@/lib/AuthProvider';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import {
   Trophy,
   Users,
@@ -10,16 +13,89 @@ import {
   ChevronRight,
   TrendingUp,
   AlertCircle,
-  Play
+  Play,
+  UserPlus,
+  Shield,
+  LogIn
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import LiveMatchBanner from '@/components/LiveMatchBanner';
-import { useAuth } from '@/lib/AuthProvider';
 
 export default function Home() {
   const { theme, clubSettings } = useTheme();
-  const { currentUser, userProfile, signOut } = useAuth();
+  const { currentUser, userProfile, signInWithGoogle, signOut } = useAuth();
+  const [myDebt, setMyDebt] = useState(0);
+  const [nextGame, setNextGame] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load user's debt from fines
+  useEffect(() => {
+    if (!currentUser || !userProfile?.teams) {
+      setLoading(false);
+      return;
+    }
+
+    const loadDebt = async () => {
+      try {
+        if (userProfile.teams.length === 0) {
+          setLoading(false);
+          return;
+        }
+
+        const finesQuery = query(
+          collection(db, 'fines'),
+          where('teamId', 'in', userProfile.teams),
+          where('playerId', '==', currentUser.uid),
+          where('status', '==', 'unpaid')
+        );
+
+        const finesSnapshot = await getDocs(finesQuery);
+        const totalDebt = finesSnapshot.docs.reduce((sum, doc) => sum + doc.data().amount, 0);
+        setMyDebt(totalDebt);
+      } catch (error) {
+        console.error('Error loading debt:', error);
+      }
+    };
+
+    loadDebt();
+  }, [currentUser, userProfile]);
+
+  // Load next upcoming game
+  useEffect(() => {
+    if (!currentUser || !userProfile?.teams) {
+      setLoading(false);
+      return;
+    }
+
+    const loadNextGame = async () => {
+      try {
+        if (userProfile.teams.length === 0) {
+          setLoading(false);
+          return;
+        }
+
+        const gamesQuery = query(
+          collection(db, 'games'),
+          where('teamId', 'in', userProfile.teams),
+          orderBy('date', 'asc'),
+          limit(1)
+        );
+
+        const gamesSnapshot = await getDocs(gamesQuery);
+        if (!gamesSnapshot.empty) {
+          const gameData = gamesSnapshot.docs[0].data();
+          setNextGame(gameData);
+        }
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading next game:', error);
+        setLoading(false);
+      }
+    };
+
+    loadNextGame();
+  }, [currentUser, userProfile]);
 
   const container = {
     hidden: { opacity: 0 },
@@ -36,6 +112,106 @@ export default function Home() {
     show: { y: 0, opacity: 1 }
   };
 
+  // Show login screen if not authenticated
+  if (!currentUser) {
+    return (
+      <main style={{
+        minHeight: '100vh',
+        background: 'var(--background)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem'
+      }}>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          style={{
+            maxWidth: '500px',
+            width: '100%',
+            textAlign: 'center'
+          }}
+        >
+          {/* Logo */}
+          <div style={{
+            width: '80px',
+            height: '80px',
+            borderRadius: '20px',
+            background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: '2rem',
+            margin: '0 auto 2rem'
+          }}>
+            {clubSettings?.name?.charAt(0) || 'G'}
+          </div>
+
+          {/* Welcome Text */}
+          <h1 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '1rem' }}>
+            Welcome to {clubSettings?.name || 'Gully'}
+          </h1>
+          <p style={{ opacity: 0.7, fontSize: '1.1rem', marginBottom: '3rem' }}>
+            Your digital cricket pavilion. Track scores, manage teams, and connect with your club.
+          </p>
+
+          {/* Sign In Button */}
+          <button
+            onClick={signInWithGoogle}
+            className="btn btn-primary"
+            style={{
+              width: '100%',
+              padding: '1.25rem',
+              fontSize: '1.1rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              marginBottom: '1rem'
+            }}
+          >
+            <LogIn size={24} />
+            Sign In with Google
+          </button>
+
+          {/* Features */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '1rem',
+            marginTop: '3rem',
+            textAlign: 'left'
+          }}>
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <Trophy size={32} style={{ color: 'var(--primary)', marginBottom: '0.75rem' }} />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Live Scoring</h3>
+              <p style={{ fontSize: '0.875rem', opacity: 0.7 }}>Real-time match scoring and stats</p>
+            </div>
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <Users size={32} style={{ color: 'var(--primary)', marginBottom: '0.75rem' }} />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Team Management</h3>
+              <p style={{ fontSize: '0.875rem', opacity: 0.7 }}>Manage rosters and players</p>
+            </div>
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <Calendar size={32} style={{ color: 'var(--primary)', marginBottom: '0.75rem' }} />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Availability</h3>
+              <p style={{ fontSize: '0.875rem', opacity: 0.7 }}>Track player availability</p>
+            </div>
+            <div className="card" style={{ padding: '1.5rem' }}>
+              <DollarSign size={32} style={{ color: 'var(--primary)', marginBottom: '0.75rem' }} />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Fines Ledger</h3>
+              <p style={{ fontSize: '0.875rem', opacity: 0.7 }}>Manage club finances</p>
+            </div>
+          </div>
+        </motion.div>
+      </main>
+    );
+  }
+
+  // Show authenticated home page
   return (
     <main style={{ paddingBottom: '5rem', minHeight: '100vh', background: 'var(--background)' }}>
       {/* Premium Header */}
@@ -74,19 +250,19 @@ export default function Home() {
         </motion.div>
 
         {/* User Profile */}
-        {currentUser && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            style={{
-              position: 'absolute',
-              top: '2rem',
-              right: '1.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem'
-            }}
-          >
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          style={{
+            position: 'absolute',
+            top: '2rem',
+            right: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem'
+          }}
+        >
+          <Link href="/profile">
             <div style={{
               width: '40px',
               height: '40px',
@@ -97,23 +273,24 @@ export default function Home() {
               justifyContent: 'center',
               color: 'white',
               fontWeight: 'bold',
-              fontSize: '0.875rem'
+              fontSize: '0.875rem',
+              cursor: 'pointer'
             }}>
               {userProfile?.displayName?.charAt(0) || currentUser.email?.charAt(0) || 'U'}
             </div>
-            <button
-              onClick={signOut}
-              className="btn"
-              style={{
-                padding: '0.5rem 1rem',
-                background: 'rgba(255, 255, 255, 0.1)',
-                fontSize: '0.875rem'
-              }}
-            >
-              Sign Out
-            </button>
-          </motion.div>
-        )}
+          </Link>
+          <button
+            onClick={signOut}
+            className="btn"
+            style={{
+              padding: '0.5rem 1rem',
+              background: 'rgba(255, 255, 255, 0.1)',
+              fontSize: '0.875rem'
+            }}
+          >
+            Sign Out
+          </button>
+        </motion.div>
       </header>
 
       <div style={{ padding: '0 1.5rem' }}>
@@ -127,7 +304,7 @@ export default function Home() {
           <LiveMatchBanner />
 
           {/* Quick Actions */}
-          <Link href="/scorer" style={{ textDecoration: 'none' }}>
+          <Link href="/scorer/setup" style={{ textDecoration: 'none' }}>
             <motion.div variants={item} className="card" style={{
               background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
               color: 'white',
@@ -137,7 +314,7 @@ export default function Home() {
             }}>
               <div>
                 <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Start Scoring</h2>
-                <p style={{ opacity: 0.9 }}>Live match vs Silicon Valley CC</p>
+                <p style={{ opacity: 0.9 }}>Set up a new match</p>
               </div>
               <div className="btn" style={{
                 background: 'white',
@@ -152,19 +329,42 @@ export default function Home() {
             </motion.div>
           </Link>
 
-          {/* Stats Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <motion.div variants={item} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ color: 'var(--primary)' }}><Trophy size={20} /></div>
-              <p style={{ opacity: 0.7, fontSize: '0.875rem' }}>Rank</p>
-              <h3 style={{ fontSize: '1.25rem' }}>#2 In League</h3>
+          {/* Team Management Quick Links */}
+          {userProfile?.teams && userProfile.teams.length > 0 ? (
+            <motion.div variants={item}>
+              <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem' }}>Team Management</h2>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <Link href="/teams/manage" style={{ textDecoration: 'none' }}>
+                  <div className="card" style={{ padding: '1.5rem', textAlign: 'center', cursor: 'pointer' }}>
+                    <Shield size={32} style={{ color: 'var(--primary)', margin: '0 auto 0.75rem' }} />
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Manage Team</h3>
+                  </div>
+                </Link>
+                <Link href="/teams/join" style={{ textDecoration: 'none' }}>
+                  <div className="card" style={{ padding: '1.5rem', textAlign: 'center', cursor: 'pointer' }}>
+                    <UserPlus size={32} style={{ color: 'var(--primary)', margin: '0 auto 0.75rem' }} />
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700 }}>Join Team</h3>
+                  </div>
+                </Link>
+              </div>
             </motion.div>
-            <motion.div variants={item} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ color: 'var(--secondary)' }}><TrendingUp size={20} /></div>
-              <p style={{ opacity: 0.7, fontSize: '0.875rem' }}>Last Innings</p>
-              <h3 style={{ fontSize: '1.25rem' }}>42 (28)</h3>
+          ) : (
+            <motion.div variants={item}>
+              <Link href="/teams/join" style={{ textDecoration: 'none' }}>
+                <div className="card" style={{
+                  padding: '2rem',
+                  textAlign: 'center',
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1))',
+                  borderColor: 'var(--primary)',
+                  borderStyle: 'dashed'
+                }}>
+                  <UserPlus size={48} style={{ color: 'var(--primary)', margin: '0 auto 1rem' }} />
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>Join a Team</h3>
+                  <p style={{ opacity: 0.7 }}>Get started by joining your cricket club</p>
+                </div>
+              </Link>
             </motion.div>
-          </div>
+          )}
 
           {/* Fun Corner Preview */}
           <motion.div variants={item}>
@@ -185,9 +385,9 @@ export default function Home() {
                   <div>
                     <p style={{ fontWeight: 600, fontSize: '0.9rem' }}>Banter Bot 🤖</p>
                     <p style={{ fontSize: '0.9rem', marginTop: '0.25rem' }}>
-                      🚨 OUCH! Lenny just dropped a sitter at mid-wicket. Someone call the fine committee! 💸
+                      Check out the latest banter from your teammates!
                     </p>
-                    <p style={{ opacity: 0.5, fontSize: '0.75rem', marginTop: '0.5rem' }}>2 mins ago</p>
+                    <p style={{ opacity: 0.5, fontSize: '0.75rem', marginTop: '0.5rem' }}>Tap to view posts</p>
                   </div>
                 </div>
               </div>
@@ -197,13 +397,26 @@ export default function Home() {
           {/* Main Menu Links */}
           <motion.div variants={item} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <Link href="/profile" style={{ textDecoration: 'none' }}>
-              <MenuLink icon={<Users />} title="Teammates" count="18" />
+              <MenuLink
+                icon={<Users />}
+                title="My Profile"
+                subtitle={userProfile?.displayName || 'View your profile'}
+              />
             </Link>
             <Link href="/fines" style={{ textDecoration: 'none' }}>
-              <MenuLink icon={<DollarSign />} title="Fines Ledger" subtitle="You owe $15" alert />
+              <MenuLink
+                icon={<DollarSign />}
+                title="Fines Ledger"
+                subtitle={myDebt > 0 ? `You owe $${myDebt.toFixed(2)}` : 'All clear!'}
+                alert={myDebt > 0}
+              />
             </Link>
             <Link href="/availability" style={{ textDecoration: 'none' }}>
-              <MenuLink icon={<Calendar />} title="Availability" subtitle="Next: Sat Feb 7" />
+              <MenuLink
+                icon={<Calendar />}
+                title="Availability"
+                subtitle={nextGame ? `Next: ${new Date(nextGame.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}` : 'No upcoming games'}
+              />
             </Link>
           </motion.div>
         </motion.div>
@@ -228,7 +441,7 @@ export default function Home() {
         <Link href="/profile">
           <NavItem icon={<Users size={24} />} />
         </Link>
-        <Link href="/scorer" style={{ marginTop: '-2.5rem' }}>
+        <Link href="/scorer/setup" style={{ marginTop: '-2.5rem' }}>
           <div style={{
             background: 'var(--primary)',
             width: '56px',
