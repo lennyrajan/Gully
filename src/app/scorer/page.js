@@ -251,7 +251,7 @@ function ScorerBoard({ config }) {
                                         value={matchState.striker || ''}
                                     >
                                         <option value="" disabled>Choose Striker...</option>
-                                        {getAvailableBatters().map(p => (
+                                        {matchState.battingTeam.players.filter(p => p !== matchState.nonStriker).map(p => (
                                             <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
                                         ))}
                                     </select>
@@ -265,7 +265,7 @@ function ScorerBoard({ config }) {
                                         value={matchState.nonStriker || ''}
                                     >
                                         <option value="" disabled>Choose Non-Striker...</option>
-                                        {getAvailableBatters().filter(p => p !== matchState.striker).map(p => (
+                                        {matchState.battingTeam.players.filter(p => p !== matchState.striker).map(p => (
                                             <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
                                         ))}
                                     </select>
@@ -279,7 +279,7 @@ function ScorerBoard({ config }) {
                                         value={matchState.bowler || ''}
                                     >
                                         <option value="" disabled>Choose Bowler...</option>
-                                        {(getAvailableBowlers().length > 0 ? getAvailableBowlers() : ['Bowler 1', 'Bowler 2']).map(p => (
+                                        {matchState.bowlingTeam.players.map(p => (
                                             <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
                                         ))}
                                     </select>
@@ -297,7 +297,7 @@ function ScorerBoard({ config }) {
                                     value={matchState.bowler || ''}
                                 >
                                     <option value="" disabled>Choose Bowler...</option>
-                                    {(getAvailableBowlers().length > 0 ? getAvailableBowlers() : ['Bowler 1', 'Bowler 2']).map(p => (
+                                    {matchState.bowlingTeam.players.filter(p => p !== matchState.lastBowler).map(p => (
                                         <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
                                     ))}
                                 </select>
