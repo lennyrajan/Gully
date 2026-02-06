@@ -78,7 +78,7 @@ function ScorerBoard({ config }) {
     const [newBatterPending, setNewBatterPending] = useState('');
 
     const handleRunClick = (runs) => {
-        if (matchState.isPaused) return;
+        if (matchState.isPaused || !matchState.bowler) return;
         addBall({
             runs,
             isExtra: !!selectedExtra,

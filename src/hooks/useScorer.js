@@ -102,6 +102,8 @@ export const useScorer = (initialState = {}) => {
             // Transition from WICKET to OVER if it's the end of an over and we have batters
             if (prev.pauseReason === 'WICKET' && str && nonStr && !prev.bowler && prev.balls > 0 && prev.balls % 6 === 0) {
                 pauseReason = 'OVER';
+            } else if (!isPaused) {
+                pauseReason = null;
             }
 
             return {
@@ -115,13 +117,17 @@ export const useScorer = (initialState = {}) => {
     }, []);
 
     const setBowler = useCallback((name) => {
-        setMatchState(prev => ({
-            ...prev,
-            bowler: name,
-            isPaused: !prev.striker || !prev.nonStriker || !name,
-            ballsLog: [],
-            overRuns: 0
-        }));
+        setMatchState(prev => {
+            const isPaused = !prev.striker || !prev.nonStriker || !name;
+            return {
+                ...prev,
+                bowler: name,
+                isPaused,
+                pauseReason: isPaused ? prev.pauseReason : null,
+                ballsLog: [],
+                overRuns: 0
+            };
+        });
     }, []);
 
     const overs = useMemo(() => {
@@ -132,7 +138,8 @@ export const useScorer = (initialState = {}) => {
 
     const addBall = useCallback((ballData) => {
         setMatchState(prev => {
-            if (prev.isPaused) return prev;
+            // Strict guard: No scoring if paused or missing key players
+            if (prev.isPaused || !prev.bowler || !prev.striker || !prev.nonStriker) return prev;
 
             const fullOvers = Math.floor(prev.balls / 6);
             if (fullOvers >= prev.maxOvers || prev.wickets >= prev.maxWickets) return prev;
@@ -263,10 +270,11 @@ export const useScorer = (initialState = {}) => {
 
             if (isEndOfOver) {
                 if (newState.overRuns === 0) currentBowler.maidens += 1;
-                // If a wicket fell on the last ball, stay on WICKET pause reason
-                // The ScorerBoard will handle the double-pause flow
+
+                newState.isPaused = true;
+                // If a wicket fell, we prioritize the WICKET pause reason initially
+                // The ScorerBoard will handle the transition to OVER after batter selection
                 if (newState.pauseReason !== 'WICKET') {
-                    newState.isPaused = true;
                     newState.pauseReason = 'OVER';
                 }
                 newState.lastBowler = prev.bowler;
