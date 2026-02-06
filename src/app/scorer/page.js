@@ -494,6 +494,28 @@ function ScorerBoard({ config }) {
                     <p style={{ fontSize: '1.5rem', opacity: 0.7, marginTop: '0.5rem' }}>
                         Overs: {overs}
                     </p>
+
+                    {/* Free Hit Indicator */}
+                    {matchState.isFreeHit && (
+                        <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            style={{
+                                marginTop: '1rem',
+                                padding: '0.5rem 1.5rem',
+                                background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                                borderRadius: '20px',
+                                fontWeight: 800,
+                                fontSize: '1rem',
+                                color: 'white',
+                                textTransform: 'uppercase',
+                                letterSpacing: '2px',
+                                boxShadow: '0 4px 12px rgba(245, 158, 11, 0.4)'
+                            }}
+                        >
+                            ⚡ FREE HIT ⚡
+                        </motion.div>
+                    )}
                 </motion.div>
 
                 {/* Ball by Ball Log */}

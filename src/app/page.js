@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import LiveMatchBanner from '@/components/LiveMatchBanner';
 
 export default function Home() {
   const { theme, clubSettings } = useTheme();
@@ -78,6 +79,9 @@ export default function Home() {
           animate="show"
           style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
         >
+          {/* Live Match Banner */}
+          <LiveMatchBanner />
+
           {/* Quick Actions */}
           <Link href="/scorer" style={{ textDecoration: 'none' }}>
             <motion.div variants={item} className="card" style={{

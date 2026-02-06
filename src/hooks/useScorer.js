@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
 
 export const useScorer = (initialState = {}) => {
     const [matchState, setMatchState] = useState(() => {
@@ -9,12 +9,13 @@ export const useScorer = (initialState = {}) => {
             totalRuns: 0,
             wickets: 0,
             balls: 0,
-            extras: { wides: 0, noBalls: 0, byes: 0, legByes: 0 },
+            extras: { wides: 0, noBalls: 0, byes: 0, legByes: 0, wideRuns: 0, noBallRuns: 0, penalties: 0 },
             maxOvers: initialState.maxOvers || 20,
             maxWickets: initialState.maxWickets || 11,
             striker: null,
             nonStriker: null,
             bowler: null,
+            isFreeHit: false, // ICC Law 21: Free hit after no-ball
             battingTeam: initialState.teamA || { name: 'PVCC', players: [] },
             bowlingTeam: initialState.teamB || { name: 'Opponent', players: [] },
             officials: {
@@ -56,6 +57,23 @@ export const useScorer = (initialState = {}) => {
         const timeoutId = setTimeout(syncData, 500); // Small debounce to prevent rapid-fire syncs
         return () => clearTimeout(timeoutId);
     }, [matchState]);
+
+    // Helper: Publish match event for live feeds
+    const publishMatchEvent = useCallback(async (eventData) => {
+        if (!matchState.matchId) return;
+
+        try {
+            await addDoc(collection(db, 'matches', matchState.matchId, 'events'), {
+                ...eventData,
+                timestamp: new Date().toISOString(),
+                inningsNum: matchState.innings,
+                battingTeam: matchState.battingTeam.name,
+                bowlingTeam: matchState.bowlingTeam.name
+            });
+        } catch (error) {
+            console.error('Error publishing match event:', error);
+        }
+    }, [matchState.matchId, matchState.innings, matchState.battingTeam.name, matchState.bowlingTeam.name]);
 
     const deepCloneScorecard = (scorecard) => {
         const newScorecard = { batting: {}, bowling: {} };
@@ -181,32 +199,64 @@ export const useScorer = (initialState = {}) => {
             const currentBatter = newState.scorecard.batting[prev.striker];
             const currentBowler = newState.scorecard.bowling[prev.bowler];
 
-            // 1. Handle Runs & Extras
-            if (isExtra) {
-                const extraRuns = (extraType === 'wide' || extraType === 'noBall' ? 1 : 0);
-                newState.totalRuns += runs + extraRuns;
-                newState.extras[extraType + 's'] += 1;
+            // 1. Handle Runs & Extras (ICC Laws 18, 21, 22, 23)
+            let ballIsLegal = true; // Track if ball counts toward over
 
+            if (isExtra) {
                 if (extraType === 'noBall') {
-                    currentBatter.balls += 1;
-                    currentBatter.runs += runs;
-                    currentBowler.runs += runs + 1;
+                    // ICC Law 21: No-ball
+                    ballIsLegal = false; // No-ball doesn't count toward over
+                    newState.extras.noBalls += 1;
+                    newState.extras.noBallRuns += runs; // Track runs off no-ball separately
+                    newState.totalRuns += runs + 1; // Batsman runs + 1 penalty
+
+                    currentBatter.balls += 1; // Batsman faces the ball
+                    currentBatter.runs += runs; // Batsman gets credit for runs
+                    if (runs === 4) currentBatter.fours += 1;
+                    if (runs === 6) currentBatter.sixes += 1;
+
+                    currentBowler.runs += runs + 1; // Bowler concedes runs + penalty
                     newState.overRuns += runs + 1;
-                    newState.ballsLog = [...prev.ballsLog, `${runs}NB`];
+                    newState.ballsLog = [...prev.ballsLog, runs > 0 ? `${runs}NB` : 'NB'];
+
+                    // ICC Law 21.4: Next ball is a Free Hit (T20/ODI)
+                    newState.isFreeHit = true;
+
                 } else if (extraType === 'wide') {
-                    currentBowler.runs += runs + 1;
+                    // ICC Law 22: Wide ball
+                    ballIsLegal = false; // Wide doesn't count toward over
+                    newState.extras.wides += 1;
+                    newState.extras.wideRuns += runs; // Track runs off wide separately
+                    newState.totalRuns += runs + 1; // Runs scored + 1 penalty
+
+                    // Batsman does NOT face the ball on a wide
+                    // But can score runs if they run
+                    currentBowler.runs += runs + 1; // Bowler concedes all
                     newState.overRuns += runs + 1;
-                    newState.ballsLog = [...prev.ballsLog, `${runs}Wd`];
-                } else {
-                    // Byes/LegByes - batter doesn't get runs, but ball is legal
+                    newState.ballsLog = [...prev.ballsLog, runs > 0 ? `${runs}Wd` : 'Wd'];
+
+                } else if (extraType === 'bye' || extraType === 'legBye') {
+                    // ICC Law 23: Byes and Leg Byes
+                    ballIsLegal = true; // Legal delivery
                     newState.balls += 1;
-                    currentBatter.balls += 1;
+                    newState.extras[extraType === 'bye' ? 'byes' : 'legByes'] += runs;
+                    newState.totalRuns += runs;
+
+                    currentBatter.balls += 1; // Batsman faces the ball
+                    // Batsman does NOT get runs credited
                     currentBowler.balls += 1;
-                    newState.ballsLog = [...prev.ballsLog, extraType === 'bye' ? 'B' : 'LB'];
+                    // Bowler does NOT concede runs (extras don't count against bowler)
+                    newState.ballsLog = [...prev.ballsLog, extraType === 'bye' ? `${runs}B` : `${runs}LB`];
+
+                    // Clear free hit after legal delivery
+                    if (prev.isFreeHit) newState.isFreeHit = false;
                 }
             } else {
-                newState.totalRuns += runs;
+                // Normal delivery
+                ballIsLegal = true;
                 newState.balls += 1;
+                newState.totalRuns += runs;
+
                 currentBatter.runs += runs;
                 currentBatter.balls += 1;
                 if (runs === 4) currentBatter.fours += 1;
@@ -217,48 +267,61 @@ export const useScorer = (initialState = {}) => {
                 newState.overRuns += runs;
                 if (runs === 0) currentBowler.dots += 1;
                 newState.ballsLog = [...prev.ballsLog, runs === 0 ? '•' : runs];
+
+                // Clear free hit after legal delivery
+                if (prev.isFreeHit) newState.isFreeHit = false;
             }
 
-            // 2. Handle Wickets
+            // 2. Handle Wickets (ICC Laws 21.4, 27-32)
             if (isWicket) {
-                newState.wickets += 1;
+                // ICC Law 21.4: On a Free Hit, batsman can only be run out
+                const isFreeHitDismissal = prev.isFreeHit && wicketType !== 'Run Out';
 
-                // Credit bowler only for certain types
-                const countsForBowler = ['Bowled', 'Caught', 'LBW', 'Stumped'].includes(wicketType);
-                if (countsForBowler) {
-                    currentBowler.wickets += 1;
+                if (isFreeHitDismissal) {
+                    // Wicket is NOT valid on free hit (except run out)
+                    // Ball has already been processed, just skip wicket logic
+                    console.log('Wicket ignored - Free Hit delivery (only run out allowed)');
+                } else {
+                    // Valid wicket
+                    newState.wickets += 1;
+
+                    // Credit bowler only for certain types
+                    const countsForBowler = ['Bowled', 'Caught', 'LBW', 'Stumped'].includes(wicketType);
+                    if (countsForBowler) {
+                        currentBowler.wickets += 1;
+                    }
+
+                    const outPlayerName = isStrikerOut ? prev.striker : prev.nonStriker;
+                    if (!newState.scorecard.batting[outPlayerName]) {
+                        newState.scorecard.batting[outPlayerName] = { runs: 0, balls: 0, fours: 0, sixes: 0, dismissal: '' };
+                    }
+                    const outBatterStats = newState.scorecard.batting[outPlayerName];
+
+                    let dismissalText = '';
+                    if (wicketType === 'Bowled') dismissalText = `b ${prev.bowler}`;
+                    else if (wicketType === 'Caught') {
+                        if (fielder === prev.bowler) dismissalText = `c & b ${prev.bowler}`;
+                        else dismissalText = `c ${fielder || 'Fielder'} b ${prev.bowler}`;
+                    }
+                    else if (wicketType === 'LBW') dismissalText = `lbw b ${prev.bowler}`;
+                    else if (wicketType === 'Run Out') dismissalText = `run out (${fielder || 'Fielder'})`;
+                    else if (wicketType === 'Stumped') dismissalText = `st ${fielder || 'Keeper'} b ${prev.bowler}`;
+                    else if (wicketType === 'Retired') dismissalText = `retired out`;
+                    else dismissalText = wicketType;
+
+                    outBatterStats.dismissal = dismissalText;
+                    newState.ballsLog = [...newState.ballsLog.slice(0, -1), 'W'];
+
+                    // Only pause for new batter if we haven't reached max wickets
+                    // If we've reached 10 wickets, innings is over - no need to select new batter
+                    if (newState.wickets < newState.maxWickets) {
+                        newState.isPaused = true;
+                        newState.pauseReason = 'WICKET';
+                        if (isStrikerOut) newState.striker = null;
+                        else newState.nonStriker = null;
+                    }
+                    // If wickets === maxWickets, innings is over, don't pause for batter
                 }
-
-                const outPlayerName = isStrikerOut ? prev.striker : prev.nonStriker;
-                if (!newState.scorecard.batting[outPlayerName]) {
-                    newState.scorecard.batting[outPlayerName] = { runs: 0, balls: 0, fours: 0, sixes: 0, dismissal: '' };
-                }
-                const outBatterStats = newState.scorecard.batting[outPlayerName];
-
-                let dismissalText = '';
-                if (wicketType === 'Bowled') dismissalText = `b ${prev.bowler}`;
-                else if (wicketType === 'Caught') {
-                    if (fielder === prev.bowler) dismissalText = `c & b ${prev.bowler}`;
-                    else dismissalText = `c ${fielder || 'Fielder'} b ${prev.bowler}`;
-                }
-                else if (wicketType === 'LBW') dismissalText = `lbw b ${prev.bowler}`;
-                else if (wicketType === 'Run Out') dismissalText = `run out (${fielder || 'Fielder'})`;
-                else if (wicketType === 'Stumped') dismissalText = `st ${fielder || 'Keeper'} b ${prev.bowler}`;
-                else if (wicketType === 'Retired') dismissalText = `retired out`;
-                else dismissalText = wicketType;
-
-                outBatterStats.dismissal = dismissalText;
-                newState.ballsLog = [...newState.ballsLog.slice(0, -1), 'W'];
-
-                // Only pause for new batter if we haven't reached max wickets
-                // If we've reached 10 wickets, innings is over - no need to select new batter
-                if (newState.wickets < newState.maxWickets) {
-                    newState.isPaused = true;
-                    newState.pauseReason = 'WICKET';
-                    if (isStrikerOut) newState.striker = null;
-                    else newState.nonStriker = null;
-                }
-                // If wickets === maxWickets, innings is over, don't pause for batter
             }
 
             const bOvers = Math.floor(currentBowler.balls / 6);
@@ -284,15 +347,77 @@ export const useScorer = (initialState = {}) => {
                 newState.bowler = null;
             }
 
-            if ((runs % 2 !== 0 && !isWicket) || isEndOfOver) {
+            // 3. Striker Rotation (ICC Law 18.3)
+            // Batsmen cross if odd runs are scored OR at end of over
+            // IMPORTANT: Rotation happens even if there's a wicket with odd runs
+            const shouldRotate = (runs % 2 !== 0) || (isEndOfOver && !isWicket);
+
+            if (shouldRotate && newState.striker && newState.nonStriker) {
                 const temp = newState.striker;
                 newState.striker = newState.nonStriker;
                 newState.nonStriker = temp;
             }
 
+            // 4. Publish Match Event for Live Feeds
+            // Use setTimeout to ensure state update completes first
+            setTimeout(() => {
+                const { runs, isExtra, extraType, isWicket, wicketType } = ballData;
+                const overNum = `${Math.floor(newState.balls / 6)}.${newState.balls % 6}`;
+
+                // Determine event type and summary
+                let eventType = 'BALL';
+                let summary = '';
+                let icon = 'DOT';
+
+                if (isWicket && !isFreeHitDismissal) {
+                    eventType = 'WICKET';
+                    icon = 'WICKET';
+                    const dismissedPlayer = isStrikerOut ? prev.striker : prev.nonStriker;
+                    summary = `WICKET! ${dismissedPlayer} ${wicketType}`;
+                } else if (runs === 6) {
+                    eventType = 'BOUNDARY';
+                    icon = 'SIX';
+                    summary = `${prev.striker} hits SIX!`;
+                } else if (runs === 4) {
+                    eventType = 'BOUNDARY';
+                    icon = 'FOUR';
+                    summary = `${prev.striker} hits FOUR!`;
+                } else if (isExtra) {
+                    if (extraType === 'wide') {
+                        summary = `Wide ball${runs > 0 ? ` + ${runs} runs` : ''}`;
+                        icon = 'WIDE';
+                    } else if (extraType === 'noBall') {
+                        summary = `No ball${runs > 0 ? `, ${prev.striker} scores ${runs}` : ''}`;
+                        icon = 'NOBALL';
+                    } else {
+                        summary = `${runs} ${extraType === 'bye' ? 'Byes' : 'Leg Byes'}`;
+                    }
+                } else if (runs === 0) {
+                    summary = `Dot ball`;
+                    icon = 'DOT';
+                } else {
+                    summary = `${prev.striker} scores ${runs}`;
+                    icon = runs.toString();
+                }
+
+                publishMatchEvent({
+                    eventType,
+                    overNum,
+                    runs,
+                    isWicket: isWicket && !isFreeHitDismissal,
+                    isBoundary: runs === 4 || runs === 6,
+                    extras: isExtra ? { type: extraType, runs } : null,
+                    summary,
+                    icon,
+                    striker: prev.striker,
+                    bowler: prev.bowler,
+                    score: `${newState.totalRuns}/${newState.wickets}`
+                });
+            }, 100);
+
             return newState;
         });
-    }, []);
+    }, [publishMatchEvent]);
 
     const undo = useCallback(() => {
         setMatchState(prev => {
