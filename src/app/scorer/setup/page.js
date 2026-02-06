@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     ChevronLeft,
@@ -12,16 +12,18 @@ import {
     Trophy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, setDoc, doc, query, orderBy } from 'firebase/firestore';
 
 export default function MatchSetup() {
     const router = useRouter();
     const [step, setStep] = useState(1);
     const [matchConfig, setMatchConfig] = useState({
-        teamA: { name: 'PVCC', players: Array(11).fill(''), impactPlayer: '', captain: null, viceCaptain: null, wicketKeeper: null },
-        teamB: { name: 'SVCC', players: Array(11).fill(''), impactPlayer: '', captain: null, viceCaptain: null, wicketKeeper: null },
+        teamA: { name: '', players: Array(11).fill(''), impactPlayer: '', captain: null, viceCaptain: null, wicketKeeper: null },
+        teamB: { name: '', players: Array(11).fill(''), impactPlayer: '', captain: null, viceCaptain: null, wicketKeeper: null },
         maxOvers: 20,
         maxWickets: 11,
-        scorerName: 'Lenny Rajan',
+        scorerName: '',
         umpires: { umpire1: '', umpire2: '' }
     });
 
@@ -35,9 +37,21 @@ export default function MatchSetup() {
     const [isFlipping, setIsFlipping] = useState(false);
     const [savedTeams, setSavedTeams] = useState({});
 
-    React.useEffect(() => {
-        const saved = localStorage.getItem('savedTeams');
-        if (saved) setSavedTeams(JSON.parse(saved));
+    useEffect(() => {
+        const loadTeams = async () => {
+            try {
+                const q = query(collection(db, 'squads'), orderBy('updatedAt', 'desc'));
+                const querySnapshot = await getDocs(q);
+                const teams = {};
+                querySnapshot.forEach((doc) => {
+                    teams[doc.id] = doc.data();
+                });
+                setSavedTeams(teams);
+            } catch (err) {
+                console.error("Error loading teams:", err);
+            }
+        };
+        loadTeams();
     }, []);
 
     const handlePlayerChange = (team, index, value) => {
@@ -93,21 +107,23 @@ export default function MatchSetup() {
         }
     };
 
-    const saveTeam = (name, teamData) => {
+    const saveTeam = async (name, teamData) => {
         if (!name || teamData.players.some(p => !p.trim())) return;
-        const date = new Date().toISOString().split('T')[0];
-        const key = `${name}_${date}`;
-        const newSavedTeams = {
-            ...savedTeams,
-            [key]: {
-                players: teamData.players,
-                captain: teamData.captain,
-                viceCaptain: teamData.viceCaptain,
-                wicketKeeper: teamData.wicketKeeper
-            }
+        const key = name.trim();
+        const squadData = {
+            players: teamData.players,
+            captain: teamData.captain,
+            viceCaptain: teamData.viceCaptain,
+            wicketKeeper: teamData.wicketKeeper,
+            updatedAt: new Date().toISOString()
         };
-        setSavedTeams(newSavedTeams);
-        localStorage.setItem('savedTeams', JSON.stringify(newSavedTeams));
+
+        try {
+            await setDoc(doc(db, 'squads', key), squadData);
+            setSavedTeams(prev => ({ ...prev, [key]: squadData }));
+        } catch (err) {
+            console.error("Error saving team:", err);
+        }
     };
 
     const isSquadComplete = (team) => {
@@ -129,15 +145,17 @@ export default function MatchSetup() {
         }, 1500);
     };
 
-    const startMatch = () => {
+    const startMatch = async () => {
         if (!isSquadComplete('teamA') || !isSquadComplete('teamB')) {
             alert('Please fill in all player names for both squads.');
             return;
         }
 
         // Save teams for reuse before starting
-        saveTeam(matchConfig.teamA.name, matchConfig.teamA);
-        saveTeam(matchConfig.teamB.name, matchConfig.teamB);
+        await Promise.all([
+            saveTeam(matchConfig.teamA.name, matchConfig.teamA),
+            saveTeam(matchConfig.teamB.name, matchConfig.teamB)
+        ]);
 
         // Determine who bats first based on toss
         let finalConfig = { ...matchConfig };
