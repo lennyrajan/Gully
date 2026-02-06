@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, setDoc, collection, addDoc } from 'firebase/firestore';
+import { createMatchPost } from '@/lib/banterbot';
 
 export const useScorer = (initialState = {}) => {
     const [matchState, setMatchState] = useState(() => {
@@ -432,6 +433,129 @@ export const useScorer = (initialState = {}) => {
                     bowler: prev.bowler,
                     score: `${newState.totalRuns}/${newState.wickets}`
                 });
+
+                // BanterBot Auto-Posting
+                if (prev.matchId) {
+                    const oldBattingStats = prev.scorecard.batting[prev.striker] || { runs: 0, balls: 0 };
+                    const newBattingStats = newState.scorecard.batting[prev.striker] || { runs: 0, balls: 0 };
+                    const oldBowlingStats = prev.scorecard.bowling[prev.bowler] || { wickets: 0 };
+                    const newBowlingStats = newState.scorecard.bowling[prev.bowler] || { wickets: 0 };
+
+                    // Wicket
+                    if (isWicket && !isFreeHitDismissal) {
+                        const dismissedPlayer = isStrikerOut ? prev.striker : prev.nonStriker;
+                        const dismissedStats = newState.scorecard.batting[dismissedPlayer] || { runs: 0, balls: 0 };
+                        createMatchPost('WICKET', {
+                            batsman: dismissedPlayer,
+                            bowler: prev.bowler,
+                            runs: dismissedStats.runs,
+                            balls: dismissedStats.balls,
+                            dismissalType: wicketType,
+                            fielder: fielder,
+                            teamName: prev.battingTeam.name,
+                            score: newState.totalRuns,
+                            wickets: newState.wickets
+                        }, prev.matchId);
+                    }
+
+                    // Boundaries
+                    if (runs === 4 && !isExtra) {
+                        createMatchPost('FOUR', {
+                            batsman: prev.striker,
+                            teamName: prev.battingTeam.name,
+                            score: newState.totalRuns,
+                            wickets: newState.wickets
+                        }, prev.matchId);
+                    }
+
+                    if (runs === 6 && !isExtra) {
+                        createMatchPost('SIX', {
+                            batsman: prev.striker,
+                            teamName: prev.battingTeam.name,
+                            score: newState.totalRuns,
+                            wickets: newState.wickets
+                        }, prev.matchId);
+                    }
+
+                    // Batting Milestones
+                    if (newBattingStats.runs >= 30 && oldBattingStats.runs < 30) {
+                        createMatchPost('THIRTY', {
+                            batsman: prev.striker,
+                            runs: newBattingStats.runs,
+                            balls: newBattingStats.balls
+                        }, prev.matchId);
+                    }
+
+                    if (newBattingStats.runs >= 50 && oldBattingStats.runs < 50) {
+                        createMatchPost('FIFTY', {
+                            batsman: prev.striker,
+                            runs: newBattingStats.runs,
+                            balls: newBattingStats.balls
+                        }, prev.matchId);
+                    }
+
+                    if (newBattingStats.runs >= 100 && oldBattingStats.runs < 100) {
+                        createMatchPost('CENTURY', {
+                            batsman: prev.striker,
+                            runs: newBattingStats.runs,
+                            balls: newBattingStats.balls
+                        }, prev.matchId);
+                    }
+
+                    // Bowling Milestones
+                    if (newBowlingStats.wickets >= 3 && oldBowlingStats.wickets < 3) {
+                        createMatchPost('THREE_WICKETS', {
+                            bowler: prev.bowler,
+                            wickets: newBowlingStats.wickets,
+                            runs: newBowlingStats.runs,
+                            overs: newBowlingStats.overs
+                        }, prev.matchId);
+                    }
+
+                    if (newBowlingStats.wickets >= 5 && oldBowlingStats.wickets < 5) {
+                        createMatchPost('FIVE_WICKETS', {
+                            bowler: prev.bowler,
+                            wickets: newBowlingStats.wickets,
+                            runs: newBowlingStats.runs,
+                            overs: newBowlingStats.overs
+                        }, prev.matchId);
+                    }
+
+                    // Hat-trick (3 wickets in 3 consecutive balls)
+                    const lastThreeBalls = newState.ballsLog.slice(-3);
+                    if (lastThreeBalls.length === 3 && lastThreeBalls.every(ball => ball === 'W')) {
+                        createMatchPost('HAT_TRICK', {
+                            bowler: prev.bowler
+                        }, prev.matchId);
+                    }
+
+                    // Maiden Over (completed over with 0 runs)
+                    if (isEndOfOver && prev.overRuns === 0) {
+                        createMatchPost('MAIDEN_OVER', {
+                            bowler: prev.bowler
+                        }, prev.matchId);
+                    }
+
+                    // End of Over
+                    if (isEndOfOver) {
+                        createMatchPost('END_OF_OVER', {
+                            teamName: prev.battingTeam.name,
+                            score: newState.totalRuns,
+                            wickets: newState.wickets,
+                            overs: Math.floor(newState.balls / 6)
+                        }, prev.matchId);
+                    }
+
+                    // Innings Complete
+                    if (newState.isInningsComplete && !prev.isInningsComplete) {
+                        createMatchPost('INNINGS_COMPLETE', {
+                            teamName: prev.battingTeam.name,
+                            score: newState.totalRuns,
+                            wickets: newState.wickets,
+                            overs: `${Math.floor(newState.balls / 6)}.${newState.balls % 6}`
+                        }, prev.matchId);
+                    }
+                }
             }, 100);
 
             return newState;

@@ -240,114 +240,121 @@ export default function FunCorner() {
                             <p style={{ fontSize: '1.1rem', opacity: 0.7 }}>No posts yet. Be the first to share!</p>
                         </div>
                     ) : (
-                        posts.map((post, index) => (
-                            <motion.div
-                                key={post.id}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                                className="card"
-                            >
-                                {/* Post Header */}
-                                <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
-                                    <div style={{
-                                        width: '48px',
-                                        height: '48px',
-                                        borderRadius: '50%',
-                                        background: post.type === 'bot' ? '#8b5cf6' : 'var(--secondary)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        color: 'white',
-                                        fontWeight: 'bold',
-                                        fontSize: '1.1rem',
-                                        flexShrink: 0
-                                    }}>
-                                        {post.type === 'bot' ? '🤖' : (post.userName?.charAt(0) || 'U')}
-                                    </div>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <p style={{ fontWeight: 700, fontSize: '1rem' }}>
-                                                {post.userName || 'Anonymous'}
-                                                {post.type === 'bot' && (
-                                                    <span style={{
-                                                        marginLeft: '0.5rem',
-                                                        fontSize: '0.75rem',
-                                                        background: '#8b5cf6',
-                                                        color: 'white',
-                                                        padding: '0.125rem 0.5rem',
-                                                        borderRadius: '12px'
-                                                    }}>
-                                                        BOT
-                                                    </span>
-                                                )}
-                                            </p>
-                                            <p style={{ fontSize: '0.75rem', opacity: 0.6 }}>
-                                                {post.createdAt && new Date(post.createdAt).toLocaleDateString('en-US', {
-                                                    month: 'short',
-                                                    day: 'numeric',
-                                                    hour: '2-digit',
-                                                    minute: '2-digit'
-                                                })}
-                                            </p>
+                        posts.map((post, index) => {
+                            const isBanterBot = post.author?.uid === 'banterbot';
+                            return (
+                                <motion.div
+                                    key={post.id}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.05 }}
+                                    className="card"
+                                    style={{
+                                        background: isBanterBot ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(5, 150, 105, 0.03))' : undefined,
+                                        borderLeft: isBanterBot ? '4px solid var(--success)' : undefined
+                                    }}
+                                >
+                                    {/* Post Header */}
+                                    <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+                                        <div style={{
+                                            width: '48px',
+                                            height: '48px',
+                                            borderRadius: '50%',
+                                            background: post.type === 'bot' ? '#8b5cf6' : 'var(--secondary)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            color: 'white',
+                                            fontWeight: 'bold',
+                                            fontSize: '1.1rem',
+                                            flexShrink: 0
+                                        }}>
+                                            {post.type === 'bot' ? '🤖' : (post.userName?.charAt(0) || 'U')}
+                                        </div>
+                                        <div style={{ flex: 1 }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                <p style={{ fontWeight: 700, fontSize: '1rem' }}>
+                                                    {post.userName || 'Anonymous'}
+                                                    {post.type === 'bot' && (
+                                                        <span style={{
+                                                            marginLeft: '0.5rem',
+                                                            fontSize: '0.75rem',
+                                                            background: '#8b5cf6',
+                                                            color: 'white',
+                                                            padding: '0.125rem 0.5rem',
+                                                            borderRadius: '12px'
+                                                        }}>
+                                                            BOT
+                                                        </span>
+                                                    )}
+                                                </p>
+                                                <p style={{ fontSize: '0.75rem', opacity: 0.6 }}>
+                                                    {post.createdAt && new Date(post.createdAt).toLocaleDateString('en-US', {
+                                                        month: 'short',
+                                                        day: 'numeric',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit'
+                                                    })}
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {/* Post Content */}
-                                <p style={{
-                                    fontSize: '1rem',
-                                    lineHeight: 1.6,
-                                    marginBottom: '1rem',
-                                    whiteSpace: 'pre-wrap'
-                                }}>
-                                    {post.content}
-                                </p>
+                                    {/* Post Content */}
+                                    <p style={{
+                                        fontSize: '1rem',
+                                        lineHeight: 1.6,
+                                        marginBottom: '1rem',
+                                        whiteSpace: 'pre-wrap'
+                                    }}>
+                                        {post.content}
+                                    </p>
 
-                                {/* Post Actions */}
-                                <div style={{
-                                    display: 'flex',
-                                    gap: '1.5rem',
-                                    paddingTop: '1rem',
-                                    borderTop: '1px solid var(--card-border)'
-                                }}>
-                                    <button
-                                        onClick={() => handleLike(post.id, post.likedBy)}
-                                        disabled={!currentUser}
-                                        style={{
-                                            background: 'none',
-                                            border: 'none',
+                                    {/* Post Actions */}
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: '1.5rem',
+                                        paddingTop: '1rem',
+                                        borderTop: '1px solid var(--card-border)'
+                                    }}>
+                                        <button
+                                            onClick={() => handleLike(post.id, post.likedBy)}
+                                            disabled={!currentUser}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                cursor: currentUser ? 'pointer' : 'not-allowed',
+                                                color: post.likedBy?.includes(currentUser?.uid) ? '#ef4444' : 'var(--foreground)',
+                                                opacity: currentUser ? 1 : 0.5,
+                                                fontSize: '0.9rem',
+                                                fontWeight: 500,
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        >
+                                            <Heart
+                                                size={18}
+                                                fill={post.likedBy?.includes(currentUser?.uid) ? '#ef4444' : 'none'}
+                                            />
+                                            {post.likes || 0}
+                                        </button>
+
+                                        <div style={{
                                             display: 'flex',
                                             alignItems: 'center',
                                             gap: '0.5rem',
-                                            cursor: currentUser ? 'pointer' : 'not-allowed',
-                                            color: post.likedBy?.includes(currentUser?.uid) ? '#ef4444' : 'var(--foreground)',
-                                            opacity: currentUser ? 1 : 0.5,
-                                            fontSize: '0.9rem',
-                                            fontWeight: 500,
-                                            transition: 'all 0.2s ease'
-                                        }}
-                                    >
-                                        <Heart
-                                            size={18}
-                                            fill={post.likedBy?.includes(currentUser?.uid) ? '#ef4444' : 'none'}
-                                        />
-                                        {post.likes || 0}
-                                    </button>
-
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.5rem',
-                                        opacity: 0.6,
-                                        fontSize: '0.9rem'
-                                    }}>
-                                        <MessageCircle size={18} />
-                                        {post.comments?.length || 0}
+                                            opacity: 0.6,
+                                            fontSize: '0.9rem'
+                                        }}>
+                                            <MessageCircle size={18} />
+                                            {post.comments?.length || 0}
+                                        </div>
                                     </div>
-                                </div>
-                            </motion.div>
-                        ))
+                                </motion.div>
+                            );
+                        })
                     )}
                 </div>
             </div>
