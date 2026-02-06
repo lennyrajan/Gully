@@ -27,6 +27,12 @@ export default function MatchSetup() {
 
     const [tossResult, setTossResult] = useState({ winner: '', choice: '' }); // winner: 'teamA' or 'teamB', choice: 'bat' or 'bowl'
     const [isFlipping, setIsFlipping] = useState(false);
+    const [savedTeams, setSavedTeams] = useState({});
+
+    React.useEffect(() => {
+        const saved = localStorage.getItem('savedTeams');
+        if (saved) setSavedTeams(JSON.parse(saved));
+    }, []);
 
     const handlePlayerChange = (team, index, value) => {
         setMatchConfig(prev => ({
@@ -43,6 +49,25 @@ export default function MatchSetup() {
             ...prev,
             [team]: { ...prev[team], impactPlayer: value }
         }));
+    };
+
+    const loadSavedTeam = (teamKey, targetTeam) => {
+        const players = savedTeams[teamKey];
+        if (players) {
+            setMatchConfig(prev => ({
+                ...prev,
+                [targetTeam]: { ...prev[targetTeam], players: [...players] }
+            }));
+        }
+    };
+
+    const saveTeam = (name, players) => {
+        if (!name || players.some(p => !p.trim())) return;
+        const date = new Date().toISOString().split('T')[0];
+        const key = `${name}_${date}`;
+        const newSavedTeams = { ...savedTeams, [key]: players };
+        setSavedTeams(newSavedTeams);
+        localStorage.setItem('savedTeams', JSON.stringify(newSavedTeams));
     };
 
     const isSquadComplete = (team) => {
@@ -64,13 +89,14 @@ export default function MatchSetup() {
             return;
         }
 
+        // Save teams for reuse before starting
+        saveTeam(matchConfig.teamA.name, matchConfig.teamA.players);
+        saveTeam(matchConfig.teamB.name, matchConfig.teamB.players);
+
         // Determine who bats first based on toss
         let finalConfig = { ...matchConfig };
         const tossWinner = tossResult.winner;
         const choice = tossResult.choice;
-
-        const teamA_Name = matchConfig.teamA.name;
-        const teamB_Name = matchConfig.teamB.name;
 
         // If Team A won and chose Bat OR Team B won and chose Bowl -> Team A bats first
         const teamAbatsFirst = (tossWinner === 'teamA' && choice === 'bat') || (tossWinner === 'teamB' && choice === 'bowl');
@@ -169,7 +195,7 @@ export default function MatchSetup() {
                                         />
                                     </div>
                                 </div>
-                                <div>
+                                <div style={{ marginTop: '1rem' }}>
                                     <label style={{ display: 'block', fontSize: '0.875rem', opacity: 0.6, marginBottom: '0.5rem' }}>Scorer Name</label>
                                     <input
                                         type="text"
@@ -188,7 +214,22 @@ export default function MatchSetup() {
 
                     {(step === 2 || step === 3) && (
                         <motion.div key={step} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>{step === 2 ? matchConfig.teamA.name : matchConfig.teamB.name} Squad</h2>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '1.5rem' }}>
+                                <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>{step === 2 ? matchConfig.teamA.name : matchConfig.teamB.name} Squad</h2>
+                                {Object.keys(savedTeams).length > 0 && (
+                                    <div style={{ width: '180px' }}>
+                                        <label style={{ fontSize: '0.7rem', opacity: 0.5 }}>Load Recent Squad</label>
+                                        <select
+                                            className="btn"
+                                            style={{ width: '100%', fontSize: '0.8rem', padding: '0.4rem', background: 'var(--card-border)' }}
+                                            onChange={(e) => loadSavedTeam(e.target.value, step === 2 ? 'teamA' : 'teamB')}
+                                        >
+                                            <option value="">Select Team...</option>
+                                            {Object.keys(savedTeams).map(k => <option key={k} value={k}>{k}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
                             <div className="card" style={{ padding: '1rem' }}>
                                 {matchConfig[step === 2 ? 'teamA' : 'teamB'].players.map((player, idx) => (
                                     <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
@@ -222,6 +263,7 @@ export default function MatchSetup() {
                             </div>
                         </motion.div>
                     )}
+
 
                     {step === 4 && (
                         <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} style={{ textAlign: 'center' }}>
