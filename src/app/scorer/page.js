@@ -17,6 +17,38 @@ import { motion, AnimatePresence } from 'framer-motion';
 export default function ScorerPage() {
     const router = useRouter();
     const [config, setConfig] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('currentMatchConfig');
+        if (saved) {
+            setConfig(JSON.parse(saved));
+        }
+        setIsLoading(false);
+    }, []);
+
+    if (isLoading) {
+        return (
+            <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--background)' }}>
+                <div className="loader" />
+            </div>
+        );
+    }
+
+    if (!config) {
+        return (
+            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--background)', gap: '1rem' }}>
+                <p style={{ opacity: 0.6 }}>No active match configuration found.</p>
+                <button className="btn btn-primary" onClick={() => router.push('/scorer/setup')}>Start New Match</button>
+            </div>
+        );
+    }
+
+    return <ScorerBoard config={config} />;
+}
+
+function ScorerBoard({ config }) {
+    const router = useRouter();
     const {
         matchState,
         overs,
@@ -25,19 +57,12 @@ export default function ScorerPage() {
         setStriker,
         setNonStriker,
         setBowler
-    } = useScorer(config || {});
+    } = useScorer(config);
 
     const [showWicketModal, setShowWicketModal] = useState(false);
     const [showScorecard, setShowScorecard] = useState(false);
     const [selectedExtra, setSelectedExtra] = useState(null);
     const [fielder, setFielder] = useState('');
-
-    useEffect(() => {
-        const saved = localStorage.getItem('currentMatchConfig');
-        if (saved) {
-            setConfig(JSON.parse(saved));
-        }
-    }, []);
 
     const handleRunClick = (runs) => {
         if (matchState.isPaused) return;
@@ -81,6 +106,7 @@ export default function ScorerPage() {
         return matchState.bowlingTeam.players.filter(p => p !== matchState.bowler);
     };
 
+
     return (
         <main style={{
             height: '100vh',
@@ -90,70 +116,68 @@ export default function ScorerPage() {
             color: 'var(--foreground)'
         }}>
             {/* Selection Modals Overlay */}
-            <AnimatePresence>
-                {matchState.isPaused && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        style={{
-                            position: 'fixed',
-                            inset: 0,
-                            background: 'rgba(0,0,0,0.9)',
-                            backdropFilter: 'blur(10px)',
-                            zIndex: 3000,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            padding: '2rem'
-                        }}
-                    >
-                        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                            <Trophy size={48} color="var(--primary)" style={{ margin: '0 auto 1rem' }} />
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>
-                                {matchState.pauseReason === 'INIT' ? 'Game Start Setup' :
-                                    matchState.pauseReason === 'WICKET' ? 'New Batter Selection' :
-                                        'New Bowler Selection'}
-                            </h2>
-                            <p style={{ opacity: 0.6 }}>Please select the required player to continue</p>
-                        </div>
+            {matchState.isPaused && (
+                <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.95)',
+                    backdropFilter: 'blur(10px)',
+                    zIndex: 5000,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: '2rem',
+                    color: 'white'
+                }}>
+                    <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                        <Trophy size={48} color="var(--primary)" style={{ margin: '0 auto 1rem' }} />
+                        <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>
+                            {matchState.pauseReason === 'INIT' ? 'Match Start Setup' :
+                                matchState.pauseReason === 'WICKET' ? 'New Batter' : 'New Bowler'}
+                        </h2>
+                        <p style={{ opacity: 0.6 }}>Choose the next player to continue</p>
+                    </div>
 
-                        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                            {(!matchState.striker || matchState.pauseReason === 'WICKET') && (
-                                <div>
-                                    <label style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.75rem', display: 'block' }}>Select Striker</label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                        {getAvailableBatters().map(p => (
-                                            <button key={p} className="btn" style={{ background: 'var(--card-bg)', padding: '1rem' }} onClick={() => setStriker(p)}>{p || 'Unfinished Name'}</button>
-                                        ))}
-                                    </div>
+                    <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                        {(!matchState.striker || matchState.pauseReason === 'WICKET') && (
+                            <div>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>Select Striker</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                    {(getAvailableBatters().length > 0 ? getAvailableBatters() : ['Batter 1', 'Batter 2']).map(p => (
+                                        <button key={p} className="btn" style={{ background: 'var(--card-bg)', padding: '1rem', border: '1px solid var(--card-border)' }} onClick={() => setStriker(p)}>{p}</button>
+                                    ))}
                                 </div>
-                            )}
+                            </div>
+                        )}
 
-                            {(!matchState.nonStriker && matchState.pauseReason === 'INIT') && (
-                                <div>
-                                    <label style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.75rem', display: 'block' }}>Select Non-Striker</label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                        {getAvailableBatters().map(p => (
-                                            <button key={p} className="btn" style={{ background: 'var(--card-bg)', padding: '1rem' }} onClick={() => setNonStriker(p)}>{p}</button>
-                                        ))}
-                                    </div>
+                        {(!matchState.nonStriker && matchState.pauseReason === 'INIT') && (
+                            <div>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>Select Non-Striker</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                    {(getAvailableBatters().map(p => (
+                                        <button key={p} className="btn" style={{ background: 'var(--card-bg)', padding: '1rem', border: '1px solid var(--card-border)' }} onClick={() => setNonStriker(p)}>{p}</button>
+                                    )))}
                                 </div>
-                            )}
+                            </div>
+                        )}
 
-                            {(!matchState.bowler || matchState.pauseReason === 'OVER' || matchState.pauseReason === 'INIT') && (
-                                <div>
-                                    <label style={{ fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.75rem', display: 'block' }}>Select Bowler</label>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                                        {getAvailableBowlers().map(p => (
-                                            <button key={p} className="btn" style={{ background: 'var(--primary)', color: 'white', padding: '1rem' }} onClick={() => setBowler(p)}>{p}</button>
-                                        ))}
-                                    </div>
+                        {(!matchState.bowler || matchState.pauseReason === 'OVER' || matchState.pauseReason === 'INIT') && (
+                            <div>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block' }}>Select Bowler</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                    {(getAvailableBowlers().length > 0 ? getAvailableBowlers() : ['Bowler 1', 'Bowler 2']).map(p => (
+                                        <button key={p} className="btn" style={{ background: 'var(--primary)', color: 'white', padding: '1rem' }} onClick={() => setBowler(p)}>{p}</button>
+                                    ))}
                                 </div>
-                            )}
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            </div>
+                        )}
+                    </div>
+
+                    <div style={{ marginTop: '2rem', textAlign: 'center' }}>
+                        <button className="btn" style={{ opacity: 0.5 }} onClick={() => router.push('/scorer/setup')}>Back to Setup</button>
+                    </div>
+                </div>
+            )}
+
 
             {/* Top Header */}
             <header style={{
