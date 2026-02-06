@@ -3,39 +3,49 @@
 import { useState, useCallback, useMemo } from 'react';
 
 export const useScorer = (initialState = {}) => {
-    const [matchState, setMatchState] = useState({
-        totalRuns: 0,
-        wickets: 0,
-        balls: 0,
-        extras: {
-            wides: 0,
-            noBalls: 0,
-            byes: 0,
-            legByes: 0
-        },
-        maxOvers: initialState.maxOvers || 20,
-        maxWickets: initialState.maxWickets || 11,
-        striker: null,
-        nonStriker: null,
-        bowler: null,
-        battingTeam: initialState.teamA || { name: 'PVCC', players: [] },
-        bowlingTeam: initialState.teamB || { name: 'Opponent', players: [] },
-        officials: {
-            scorer: initialState.scorerName || '',
-            umpires: initialState.umpires || { umpire1: '', umpire2: '' }
-        },
-        scorecard: {
-            batting: {},
-            bowling: {}
-        },
-        history: [],
-        ballsLog: [],
-        isPaused: true, // For selection prompts
-        pauseReason: 'INIT', // INIT, WICKET, OVER
-        lastBowler: null,
-        overRuns: 0,
-        ...initialState
+    const [matchState, setMatchState] = useState(() => {
+        const { history: _h, ...cleanInitial } = initialState;
+        return {
+            totalRuns: 0,
+            wickets: 0,
+            balls: 0,
+            extras: { wides: 0, noBalls: 0, byes: 0, legByes: 0 },
+            maxOvers: initialState.maxOvers || 20,
+            maxWickets: initialState.maxWickets || 11,
+            striker: null,
+            nonStriker: null,
+            bowler: null,
+            battingTeam: initialState.teamA || { name: 'PVCC', players: [] },
+            bowlingTeam: initialState.teamB || { name: 'Opponent', players: [] },
+            officials: {
+                scorer: initialState.scorerName || '',
+                umpires: initialState.umpires || { umpire1: '', umpire2: '' }
+            },
+            scorecard: { batting: {}, bowling: {} },
+            history: [],
+            ballsLog: [],
+            isPaused: true,
+            pauseReason: 'INIT',
+            lastBowler: null,
+            overRuns: 0,
+            ...cleanInitial
+        };
     });
+
+    const deepCloneScorecard = (scorecard) => {
+        const newScorecard = { batting: {}, bowling: {} };
+        if (scorecard.batting) {
+            for (const [name, stats] of Object.entries(scorecard.batting)) {
+                newScorecard.batting[name] = { ...stats };
+            }
+        }
+        if (scorecard.bowling) {
+            for (const [name, stats] of Object.entries(scorecard.bowling)) {
+                newScorecard.bowling[name] = { ...stats };
+            }
+        }
+        return newScorecard;
+    };
 
     const setStriker = useCallback((name) => {
         setMatchState(prev => {
@@ -82,11 +92,28 @@ export const useScorer = (initialState = {}) => {
             const fullOvers = Math.floor(prev.balls / 6);
             if (fullOvers >= prev.maxOvers || prev.wickets >= prev.maxWickets) return prev;
 
-            const { history: _oldHistory, ...stateToSave } = prev;
+            // Create a small snapshot EXCLUDING history
+            const snapshot = {
+                totalRuns: prev.totalRuns,
+                wickets: prev.wickets,
+                balls: prev.balls,
+                extras: { ...prev.extras },
+                striker: prev.striker,
+                nonStriker: prev.nonStriker,
+                bowler: prev.bowler,
+                scorecard: deepCloneScorecard(prev.scorecard),
+                ballsLog: [...prev.ballsLog],
+                overRuns: prev.overRuns,
+                isPaused: prev.isPaused,
+                pauseReason: prev.pauseReason,
+                lastBowler: prev.lastBowler
+            };
+
             const newState = {
                 ...prev,
-                history: [...prev.history, JSON.parse(JSON.stringify(stateToSave))],
-                scorecard: JSON.parse(JSON.stringify(prev.scorecard))
+                history: [...prev.history, snapshot],
+                scorecard: deepCloneScorecard(prev.scorecard),
+                extras: { ...prev.extras }
             };
 
             const { runs, isExtra, extraType, isWicket, wicketType, fielder, isStrikerOut = true } = ballData;
@@ -202,8 +229,13 @@ export const useScorer = (initialState = {}) => {
 
     const undo = useCallback(() => {
         setMatchState(prev => {
-            if (prev.history.length === 0) return prev;
-            return prev.history[prev.history.length - 1];
+            if (!prev.history || prev.history.length === 0) return prev;
+            const previousState = prev.history[prev.history.length - 1];
+            return {
+                ...prev,
+                ...previousState,
+                history: prev.history.slice(0, -1)
+            };
         });
     }, []);
 
