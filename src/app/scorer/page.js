@@ -372,36 +372,7 @@ function ScorerBoard({ config }) {
                             </div>
                         )}
 
-                        {/* New Batter Selection - Only show if striker OR nonStriker is null */}
-                        {matchState.pauseReason === 'WICKET' && (!matchState.striker || !matchState.nonStriker) && (
-                            <>
-                                <div>
-                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--primary)' }}>Select New Batter</label>
-                                    <select
-                                        className="input-field"
-                                        style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.1rem' }}
-                                        onChange={(e) => {
-                                            const newBatter = e.target.value;
-                                            const survivor = matchState.striker || matchState.nonStriker;
-                                            // Automatically set the new batter as striker, survivor as non-striker
-                                            setBatters(newBatter, survivor);
-                                        }}
-                                        value=""
-                                    >
-                                        <option value="" disabled>Choose New Batter...</option>
-                                        {matchState.battingTeam.players
-                                            .filter(p => {
-                                                const hasPlayed = matchState.scorecard.batting[p];
-                                                const isOut = hasPlayed && hasPlayed.dismissal;
-                                                return !isOut && p !== matchState.striker && p !== matchState.nonStriker;
-                                            })
-                                            .map(p => (
-                                                <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
-                                            ))}
-                                    </select>
-                                </div>
-                            </>
-                        )}
+
 
                         {matchState.pauseReason === 'INIT' && (
                             <>
