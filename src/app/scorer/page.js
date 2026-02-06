@@ -204,6 +204,7 @@ function ScorerBoard({ config }) {
         const history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
         history.push(stats);
         localStorage.setItem('matchHistory', JSON.stringify(history));
+        localStorage.removeItem('currentMatchConfig');
         alert('Match Finalized! Stats synced to profiles.');
         router.push('/profile');
     };

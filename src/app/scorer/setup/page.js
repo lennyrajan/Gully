@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, setDoc, doc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, setDoc, updateDoc, doc, query, orderBy, where, limit } from 'firebase/firestore';
+import { useAuth } from '@/lib/AuthProvider';
 
 export default function MatchSetup() {
     const router = useRouter();
@@ -36,8 +37,19 @@ export default function MatchSetup() {
     });
     const [isFlipping, setIsFlipping] = useState(false);
     const [savedTeams, setSavedTeams] = useState({});
+    const [activeMatches, setActiveMatches] = useState([]);
+    const [deviceId, setDeviceId] = useState(null);
+    const { currentUser } = useAuth();
 
     useEffect(() => {
+        // Initialize or retrieve Device ID
+        let id = localStorage.getItem('gully_device_id');
+        if (!id) {
+            id = `dev_${Math.random().toString(36).substr(2, 9)}_${Date.now()}`;
+            localStorage.setItem('gully_device_id', id);
+        }
+        setDeviceId(id);
+
         const loadTeams = async () => {
             try {
                 const q = query(collection(db, 'squads'), orderBy('updatedAt', 'desc'));
@@ -52,6 +64,29 @@ export default function MatchSetup() {
             }
         };
         loadTeams();
+
+        // Fetch active matches for this device
+        const fetchActiveMatches = async () => {
+            if (!id) return;
+            try {
+                const q = query(
+                    collection(db, 'matches'),
+                    where('deviceId', '==', id),
+                    where('status', '==', 'LIVE'),
+                    orderBy('lastUpdated', 'desc'),
+                    limit(3)
+                );
+                const snapshot = await getDocs(q);
+                const matches = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setActiveMatches(matches);
+            } catch (err) {
+                console.error("Error fetching active matches:", err);
+            }
+        };
+        fetchActiveMatches();
     }, []);
 
     const handlePlayerChange = (team, index, value) => {
@@ -180,6 +215,8 @@ export default function MatchSetup() {
         try {
             await setDoc(doc(db, 'matches', matchId), {
                 ...finalConfig,
+                deviceId,
+                scorerId: currentUser?.uid || null,
                 lastUpdated: new Date().toISOString(),
                 state: {
                     totalRuns: 0,
@@ -236,7 +273,54 @@ export default function MatchSetup() {
                     {step === 1 && (
                         <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
                             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>Match Details</h2>
-                            <p style={{ opacity: 0.6, marginBottom: '2rem' }}>Start a fresh match or join one using a code.</p>
+                            <p style={{ opacity: 0.6, marginBottom: '2rem' }}>Start a fresh match or resume a live one.</p>
+
+                            {/* Resume Active Match Section */}
+                            {activeMatches.length > 0 && (
+                                <div style={{ marginBottom: '2rem' }}>
+                                    <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: 'var(--primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <div style={{ width: '6px', height: '6px', background: 'var(--primary)', borderRadius: '50%', boxShadow: '0 0 8px var(--primary)' }} />
+                                        RESUME ACTIVE MATCH (THIS DEVICE)
+                                    </h3>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                        {activeMatches.map((match) => (
+                                            <div
+                                                key={match.id}
+                                                className="card"
+                                                style={{
+                                                    padding: '1rem',
+                                                    display: 'flex',
+                                                    justifyContent: 'space-between',
+                                                    alignItems: 'center',
+                                                    background: 'rgba(255,255,255,0.03)',
+                                                    border: '1px solid var(--card-border)'
+                                                }}
+                                            >
+                                                <div>
+                                                    <p style={{ fontWeight: 800, fontSize: '1rem' }}>{match.teamA.name} vs {match.teamB.name}</p>
+                                                    <p style={{ fontSize: '0.75rem', opacity: 0.5 }}>
+                                                        Last seen: {new Date(match.lastUpdated).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    className="btn btn-primary"
+                                                    style={{ padding: '0.5rem 1rem', fontSize: '0.75rem' }}
+                                                    onClick={() => {
+                                                        const config = {
+                                                            ...match,
+                                                            matchId: match.id
+                                                        };
+                                                        localStorage.setItem('currentMatchConfig', JSON.stringify(config));
+                                                        router.push('/scorer');
+                                                    }}
+                                                >
+                                                    RESUME
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             <div style={{ marginBottom: '2rem' }}>
                                 <button
@@ -277,10 +361,19 @@ export default function MatchSetup() {
                                             }
 
                                             // Take over!
-                                            localStorage.setItem('currentMatchConfig', JSON.stringify({
+                                            const config = {
                                                 ...matchData,
-                                                matchId: matchDoc.id
-                                            }));
+                                                matchId: matchDoc.id,
+                                                deviceId // Update local config with current deviceId
+                                            };
+
+                                            // Update deviceId in Firestore so THIS device can resume if needed
+                                            await updateDoc(doc(db, 'matches', matchDoc.id), {
+                                                deviceId: deviceId,
+                                                lastUpdated: new Date().toISOString()
+                                            });
+
+                                            localStorage.setItem('currentMatchConfig', JSON.stringify(config));
                                             alert("Scoring transferred successfully!");
                                             router.push('/scorer');
 
