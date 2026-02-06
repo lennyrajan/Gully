@@ -258,7 +258,7 @@ export default function MatchScorecard() {
                 </motion.div>
 
                 {/* Completed Innings */}
-                {matchData.completedInnings && matchData.completedInnings.length > 0 && matchData.completedInnings.map((innings, inningsIdx) => (
+                {state.completedInnings && state.completedInnings.length > 0 && state.completedInnings.map((innings, inningsIdx) => (
                     <React.Fragment key={`innings-${inningsIdx}`}>
                         {/* Innings Header */}
                         <motion.div
@@ -437,7 +437,7 @@ export default function MatchScorecard() {
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <h2 style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                                    {matchData.innings === 1 ? '1st' : '2nd'} Innings - {state.battingTeam?.name || 'Batting Team'}
+                                    {state.innings === 1 ? '1st' : '2nd'} Innings - {state.battingTeam?.name || 'Batting Team'}
                                     {matchData.status === 'INNINGS_BREAK' && <span style={{ marginLeft: '1rem', fontSize: '0.9rem', opacity: 0.9 }}>• Innings Break</span>}
                                 </h2>
                                 {isLive && (
