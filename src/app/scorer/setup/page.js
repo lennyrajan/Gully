@@ -286,7 +286,7 @@ export default function MatchSetup() {
                                         <input
                                             type="number"
                                             value={matchConfig.maxWickets}
-                                            onChange={(e) => setMatchConfig({ ...matchConfig, maxWickets: parseInt(e.target.value) || 11 })}
+                                            onChange={(e) => setMatchConfig({ ...matchConfig, maxWickets: parseInt(e.target.value) || 10 })}
                                             className="input-field"
                                             style={{ width: '100%', padding: '1rem', background: 'var(--background)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'var(--foreground)' }}
                                         />

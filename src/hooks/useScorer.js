@@ -12,7 +12,7 @@ export const useScorer = (initialState = {}) => {
             balls: 0,
             extras: { wides: 0, noBalls: 0, byes: 0, legByes: 0, wideRuns: 0, noBallRuns: 0, penalties: 0 },
             maxOvers: initialState.maxOvers || 20,
-            maxWickets: initialState.maxWickets || 11,
+            maxWickets: initialState.maxWickets || 10,
             striker: null,
             nonStriker: null,
             bowler: null,
@@ -352,16 +352,19 @@ export const useScorer = (initialState = {}) => {
 
             const isLegalBall = !isExtra || (extraType !== 'wide' && extraType !== 'noBall');
             const isEndOfOver = isLegalBall && newState.balls % 6 === 0;
+            const isMatchCompletePreCheck = newState.balls >= (newState.maxOvers * 6) || newState.wickets >= (newState.maxWickets || 10);
 
-            if (isEndOfOver) {
+            if (isEndOfOver && !isMatchCompletePreCheck) {
                 if (newState.overRuns === 0) currentBowler.maidens += 1;
 
                 newState.isPaused = true;
-                // If a wicket fell, we prioritize the WICKET pause reason initially
-                // The ScorerBoard will handle the transition to OVER after batter selection
                 if (newState.pauseReason !== 'WICKET') {
                     newState.pauseReason = 'OVER';
                 }
+                newState.lastBowler = prev.bowler;
+                newState.bowler = null;
+            } else if (isEndOfOver && isMatchCompletePreCheck) {
+                if (newState.overRuns === 0) currentBowler.maidens += 1;
                 newState.lastBowler = prev.bowler;
                 newState.bowler = null;
             }
@@ -418,9 +421,7 @@ export const useScorer = (initialState = {}) => {
             }
 
             // 4. Check for Innings Completion
-            const totalOvers = Math.floor(newState.balls / 6);
-            const maxOvers = newState.maxOvers;
-            const isOversComplete = totalOvers >= maxOvers;
+            const isOversComplete = newState.balls >= (newState.maxOvers * 6);
             const isAllOut = newState.wickets >= (newState.maxWickets || 10);
 
             // Check if target is chased (2nd innings)
