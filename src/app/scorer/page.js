@@ -270,6 +270,20 @@ function ScorerBoard({ config }) {
                                         ))}
                                     </select>
                                 </div>
+                                <div style={{ marginTop: '1.5rem' }}>
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--accent)' }}>Select Bowler</label>
+                                    <select
+                                        className="input-field"
+                                        style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.1rem' }}
+                                        onChange={(e) => setBowler(e.target.value)}
+                                        value={matchState.bowler || ''}
+                                    >
+                                        <option value="" disabled>Choose Bowler...</option>
+                                        {(getAvailableBowlers().length > 0 ? getAvailableBowlers() : ['Bowler 1', 'Bowler 2']).map(p => (
+                                            <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </>
                         )}
 
