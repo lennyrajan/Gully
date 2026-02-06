@@ -326,8 +326,8 @@ function ScorerBoard({ config }) {
                     <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                         <Trophy size={48} color="var(--primary)" style={{ margin: '0 auto 1rem' }} />
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>
-                            {matchState.pauseReason === 'INIT' ? 'Match Start Setup' :
-                                matchState.pauseReason === 'WICKET' ? 'New Batter' : 'New Bowler'}
+                            {matchState.pauseReason === 'INIT' ? 'Match Initialization' :
+                                matchState.pauseReason === 'WICKET' ? 'Wicket: Select New Batter' : 'New Over: Select Bowler'}
                         </h2>
                         <p style={{ opacity: 0.6 }}>Choose the next player to continue</p>
                     </div>
@@ -335,7 +335,6 @@ function ScorerBoard({ config }) {
                     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                         {matchState.pauseReason === 'WICKET' && !newBatterPending && (
                             <div>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--primary)' }}>Select New Batter</label>
                                 <select
                                     className="input-field"
                                     style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.1rem' }}
