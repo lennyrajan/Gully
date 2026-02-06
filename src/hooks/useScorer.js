@@ -82,9 +82,10 @@ export const useScorer = (initialState = {}) => {
             const fullOvers = Math.floor(prev.balls / 6);
             if (fullOvers >= prev.maxOvers || prev.wickets >= prev.maxWickets) return prev;
 
+            const { history: _oldHistory, ...stateToSave } = prev;
             const newState = {
                 ...prev,
-                history: [...prev.history, JSON.parse(JSON.stringify(prev))],
+                history: [...prev.history, JSON.parse(JSON.stringify(stateToSave))],
                 scorecard: JSON.parse(JSON.stringify(prev.scorecard))
             };
 
