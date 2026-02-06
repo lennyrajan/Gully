@@ -436,6 +436,7 @@ export const useScorer = (initialState = {}) => {
 
                 // BanterBot Auto-Posting
                 if (prev.matchId) {
+                    console.log('🤖 BanterBot: Checking for events to post...', { matchId: prev.matchId });
                     const oldBattingStats = prev.scorecard.batting[prev.striker] || { runs: 0, balls: 0 };
                     const newBattingStats = newState.scorecard.batting[prev.striker] || { runs: 0, balls: 0 };
                     const oldBowlingStats = prev.scorecard.bowling[prev.bowler] || { wickets: 0 };
@@ -443,6 +444,7 @@ export const useScorer = (initialState = {}) => {
 
                     // Wicket
                     if (isWicket && !isFreeHitDismissal) {
+                        console.log('🤖 BanterBot: Posting WICKET');
                         const dismissedPlayer = isStrikerOut ? prev.striker : prev.nonStriker;
                         const dismissedStats = newState.scorecard.batting[dismissedPlayer] || { runs: 0, balls: 0 };
                         createMatchPost('WICKET', {
@@ -455,105 +457,116 @@ export const useScorer = (initialState = {}) => {
                             teamName: prev.battingTeam.name,
                             score: newState.totalRuns,
                             wickets: newState.wickets
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot wicket error:', err));
                     }
 
                     // Boundaries
                     if (runs === 4 && !isExtra) {
+                        console.log('🤖 BanterBot: Posting FOUR');
                         createMatchPost('FOUR', {
                             batsman: prev.striker,
                             teamName: prev.battingTeam.name,
                             score: newState.totalRuns,
                             wickets: newState.wickets
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot four error:', err));
                     }
 
                     if (runs === 6 && !isExtra) {
+                        console.log('🤖 BanterBot: Posting SIX');
                         createMatchPost('SIX', {
                             batsman: prev.striker,
                             teamName: prev.battingTeam.name,
                             score: newState.totalRuns,
                             wickets: newState.wickets
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot six error:', err));
                     }
 
                     // Batting Milestones
                     if (newBattingStats.runs >= 30 && oldBattingStats.runs < 30) {
+                        console.log('🤖 BanterBot: Posting THIRTY milestone');
                         createMatchPost('THIRTY', {
                             batsman: prev.striker,
                             runs: newBattingStats.runs,
                             balls: newBattingStats.balls
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot thirty error:', err));
                     }
 
                     if (newBattingStats.runs >= 50 && oldBattingStats.runs < 50) {
+                        console.log('🤖 BanterBot: Posting FIFTY milestone');
                         createMatchPost('FIFTY', {
                             batsman: prev.striker,
                             runs: newBattingStats.runs,
                             balls: newBattingStats.balls
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot fifty error:', err));
                     }
 
                     if (newBattingStats.runs >= 100 && oldBattingStats.runs < 100) {
+                        console.log('🤖 BanterBot: Posting CENTURY milestone');
                         createMatchPost('CENTURY', {
                             batsman: prev.striker,
                             runs: newBattingStats.runs,
                             balls: newBattingStats.balls
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot century error:', err));
                     }
 
                     // Bowling Milestones
                     if (newBowlingStats.wickets >= 3 && oldBowlingStats.wickets < 3) {
+                        console.log('🤖 BanterBot: Posting THREE_WICKETS milestone');
                         createMatchPost('THREE_WICKETS', {
                             bowler: prev.bowler,
                             wickets: newBowlingStats.wickets,
                             runs: newBowlingStats.runs,
                             overs: newBowlingStats.overs
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot 3 wickets error:', err));
                     }
 
                     if (newBowlingStats.wickets >= 5 && oldBowlingStats.wickets < 5) {
+                        console.log('🤖 BanterBot: Posting FIVE_WICKETS milestone');
                         createMatchPost('FIVE_WICKETS', {
                             bowler: prev.bowler,
                             wickets: newBowlingStats.wickets,
                             runs: newBowlingStats.runs,
                             overs: newBowlingStats.overs
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot 5 wickets error:', err));
                     }
 
                     // Hat-trick (3 wickets in 3 consecutive balls)
                     const lastThreeBalls = newState.ballsLog.slice(-3);
                     if (lastThreeBalls.length === 3 && lastThreeBalls.every(ball => ball === 'W')) {
+                        console.log('🤖 BanterBot: Posting HAT_TRICK!');
                         createMatchPost('HAT_TRICK', {
                             bowler: prev.bowler
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot hat-trick error:', err));
                     }
 
                     // Maiden Over (completed over with 0 runs)
                     if (isEndOfOver && prev.overRuns === 0) {
+                        console.log('🤖 BanterBot: Posting MAIDEN_OVER');
                         createMatchPost('MAIDEN_OVER', {
                             bowler: prev.bowler
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot maiden error:', err));
                     }
 
                     // End of Over
                     if (isEndOfOver) {
+                        console.log('🤖 BanterBot: Posting END_OF_OVER');
                         createMatchPost('END_OF_OVER', {
                             teamName: prev.battingTeam.name,
                             score: newState.totalRuns,
                             wickets: newState.wickets,
                             overs: Math.floor(newState.balls / 6)
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot end of over error:', err));
                     }
 
                     // Innings Complete
                     if (newState.isInningsComplete && !prev.isInningsComplete) {
+                        console.log('🤖 BanterBot: Posting INNINGS_COMPLETE');
                         createMatchPost('INNINGS_COMPLETE', {
                             teamName: prev.battingTeam.name,
                             score: newState.totalRuns,
                             wickets: newState.wickets,
                             overs: `${Math.floor(newState.balls / 6)}.${newState.balls % 6}`
-                        }, prev.matchId);
+                        }, prev.matchId).catch(err => console.error('BanterBot innings complete error:', err));
                     }
                 }
             }, 100);

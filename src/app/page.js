@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '@/lib/ThemeProvider';
 import { useAuth } from '@/lib/AuthProvider';
 import { db } from '@/lib/firebase';
-import { collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, where, onSnapshot } from 'firebase/firestore';
 import {
   Trophy,
   Calendar,
@@ -51,30 +51,29 @@ export default function Home() {
     loadRecentMatches();
   }, []);
 
-  // Load recent posts (public)
+  // Load recent posts (public) - REAL-TIME
   useEffect(() => {
-    const loadRecentPosts = async () => {
-      try {
-        const postsQuery = query(
-          collection(db, 'posts'),
-          orderBy('createdAt', 'desc'),
-          limit(5)
-        );
+    const postsQuery = query(
+      collection(db, 'posts'),
+      orderBy('createdAt', 'desc'),
+      limit(5)
+    );
 
-        const postsSnapshot = await getDocs(postsQuery);
-        const postsData = postsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        setRecentPosts(postsData);
-        setLoading(false);
-      } catch (error) {
-        console.error('Error loading posts:', error);
-        setLoading(false);
-      }
-    };
+    // Real-time listener
+    const unsubscribe = onSnapshot(postsQuery, (snapshot) => {
+      const postsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setRecentPosts(postsData);
+      setLoading(false);
+    }, (error) => {
+      console.error('Error loading posts:', error);
+      setLoading(false);
+    });
 
-    loadRecentPosts();
+    // Cleanup listener on unmount
+    return () => unsubscribe();
   }, []);
 
   const container = {
