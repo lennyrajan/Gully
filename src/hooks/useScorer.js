@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 
 export const useScorer = (initialState = {}) => {
     const [matchState, setMatchState] = useState(() => {
@@ -33,22 +33,26 @@ export const useScorer = (initialState = {}) => {
         };
     });
 
+    const [lastSynced, setLastSynced] = useState(null);
+
     useEffect(() => {
         if (!matchState.matchId) return;
 
         const syncData = async () => {
             try {
                 const { history: _h, ...stateToSync } = matchState;
-                await updateDoc(doc(db, 'matches', matchState.matchId), {
+                await setDoc(doc(db, 'matches', matchState.matchId), {
                     state: stateToSync,
                     lastUpdated: new Date().toISOString()
-                });
+                }, { merge: true });
+                setLastSynced(new Date());
             } catch (error) {
                 console.error("Error syncing to Firestore:", error);
             }
         };
 
-        syncData();
+        const timeoutId = setTimeout(syncData, 500); // Small debounce to prevent rapid-fire syncs
+        return () => clearTimeout(timeoutId);
     }, [matchState]);
 
     const deepCloneScorecard = (scorecard) => {
@@ -272,6 +276,7 @@ export const useScorer = (initialState = {}) => {
         overs,
         addBall,
         undo,
+        lastSynced,
         setStriker,
         setNonStriker,
         setBatters,

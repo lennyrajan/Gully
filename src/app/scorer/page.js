@@ -56,8 +56,10 @@ function ScorerBoard({ config }) {
         overs,
         addBall,
         undo,
+        lastSynced,
         setStriker,
         setNonStriker,
+        setBatters,
         setBowler
     } = useScorer(config);
 
@@ -359,8 +361,8 @@ function ScorerBoard({ config }) {
                                 fontWeight: 700,
                                 textTransform: 'uppercase'
                             }}>
-                                <span style={{ width: '6px', height: '6px', background: '#22c55e', borderRadius: '50%' }} />
-                                Live Sync
+                                <span style={{ width: '6px', height: '6px', background: lastSynced ? '#22c55e' : '#eab308', borderRadius: '50%' }} />
+                                {lastSynced ? `Synced ${lastSynced.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : 'Syncing...'}
                             </span>
                         )}
                     </div>
