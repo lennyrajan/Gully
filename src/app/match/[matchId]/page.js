@@ -261,7 +261,7 @@ export default function MatchScorecard() {
                 </motion.div>
 
                 {/* Batting Scorecard */}
-                {state.battingTeam && state.battingTeam.batsmen && state.battingTeam.batsmen.length > 0 ? (
+                {state.scorecard?.batting && Object.keys(state.scorecard.batting).length > 0 ? (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -271,7 +271,7 @@ export default function MatchScorecard() {
                     >
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Users size={24} />
-                            Batting Scorecard
+                            Batting Scorecard - {state.battingTeam?.name || 'Batting Team'}
                         </h2>
 
                         <div style={{ overflowX: 'auto' }}>
@@ -287,9 +287,9 @@ export default function MatchScorecard() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {state.battingTeam.batsmen.map((batsman, idx) => {
-                                        const strikeRate = batsman.balls > 0 ? ((batsman.runs / batsman.balls) * 100).toFixed(1) : '0.0';
-                                        const isOnStrike = batsman.onStrike;
+                                    {Object.entries(state.scorecard.batting).map(([playerName, stats], idx) => {
+                                        const strikeRate = stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0';
+                                        const isOnStrike = playerName === state.striker;
 
                                         return (
                                             <tr
@@ -299,20 +299,56 @@ export default function MatchScorecard() {
                                                     background: isOnStrike ? 'rgba(16, 185, 129, 0.1)' : 'transparent'
                                                 }}
                                             >
-                                                <td style={{ padding: '0.75rem', fontWeight: isOnStrike ? 700 : 500 }}>
-                                                    {batsman.name}
-                                                    {isOnStrike && <span style={{ marginLeft: '0.5rem', color: 'var(--primary)', fontSize: '0.75rem' }}>*</span>}
+                                                <td style={{ padding: '0.75rem' }}>
+                                                    <div style={{ fontWeight: isOnStrike ? 700 : 500 }}>
+                                                        {playerName}
+                                                        {isOnStrike && <span style={{ marginLeft: '0.5rem', color: 'var(--primary)', fontSize: '0.75rem' }}>*</span>}
+                                                    </div>
+                                                    {stats.dismissal && (
+                                                        <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.25rem' }}>
+                                                            {stats.dismissal}
+                                                        </div>
+                                                    )}
                                                 </td>
-                                                <td style={{ textAlign: 'center', padding: '0.75rem', fontWeight: 600 }}>{batsman.runs}</td>
-                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{batsman.balls}</td>
-                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{batsman.fours}</td>
-                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{batsman.sixes}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem', fontWeight: 600 }}>{stats.runs || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.balls || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.fours || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.sixes || 0}</td>
                                                 <td style={{ textAlign: 'center', padding: '0.75rem' }}>{strikeRate}</td>
                                             </tr>
                                         );
                                     })}
                                 </tbody>
                             </table>
+                        </div>
+
+                        {/* Extras and Total */}
+                        <div style={{
+                            marginTop: '1rem',
+                            paddingTop: '1rem',
+                            borderTop: '1px solid var(--card-border)',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: '0.9rem'
+                        }}>
+                            <div>
+                                <span style={{ opacity: 0.7 }}>Extras: </span>
+                                <span style={{ fontWeight: 600 }}>
+                                    {(state.extras?.wides || 0) + (state.extras?.noBalls || 0) + (state.extras?.byes || 0) + (state.extras?.legByes || 0)}
+                                </span>
+                                <span style={{ fontSize: '0.75rem', opacity: 0.5, marginLeft: '0.5rem' }}>
+                                    (wd {state.extras?.wides || 0}, nb {state.extras?.noBalls || 0}, b {state.extras?.byes || 0}, lb {state.extras?.legByes || 0})
+                                </span>
+                            </div>
+                            <div>
+                                <span style={{ opacity: 0.7 }}>Total: </span>
+                                <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--primary)' }}>
+                                    {state.totalRuns}/{state.wickets}
+                                </span>
+                                <span style={{ opacity: 0.7, marginLeft: '0.5rem' }}>
+                                    ({Math.floor((state.balls || 0) / 6)}.{(state.balls || 0) % 6} Ov)
+                                </span>
+                            </div>
                         </div>
                     </motion.div>
                 ) : (
@@ -327,25 +363,11 @@ export default function MatchScorecard() {
                         <p style={{ opacity: 0.7 }}>
                             {state.totalRuns === 0 ? 'Match just started - no balls bowled yet' : 'Batting scorecard will appear once scoring begins'}
                         </p>
-                        {/* Debug info */}
-                        <details style={{ marginTop: '1rem', textAlign: 'left', fontSize: '0.75rem', opacity: 0.5 }}>
-                            <summary style={{ cursor: 'pointer' }}>Debug Info</summary>
-                            <pre style={{ overflow: 'auto', padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', marginTop: '0.5rem' }}>
-                                {JSON.stringify({
-                                    hasBattingTeam: !!state.battingTeam,
-                                    hasBatsmen: !!state.battingTeam?.batsmen,
-                                    batsmenLength: state.battingTeam?.batsmen?.length,
-                                    totalRuns: state.totalRuns,
-                                    wickets: state.wickets,
-                                    balls: state.balls
-                                }, null, 2)}
-                            </pre>
-                        </details>
                     </motion.div>
                 )}
 
                 {/* Bowling Figures */}
-                {state.bowlingTeam && state.bowlingTeam.bowlers && state.bowlingTeam.bowlers.length > 0 && (
+                {state.scorecard?.bowling && Object.keys(state.scorecard.bowling).length > 0 && (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -355,7 +377,7 @@ export default function MatchScorecard() {
                     >
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <TrendingUp size={24} />
-                            Bowling Figures
+                            Bowling Figures - {state.bowlingTeam?.name || 'Bowling Team'}
                         </h2>
 
                         <div style={{ overflowX: 'auto' }}>
@@ -371,11 +393,8 @@ export default function MatchScorecard() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {state.bowlingTeam.bowlers.map((bowler, idx) => {
-                                        const overs = Math.floor(bowler.balls / 6);
-                                        const balls = bowler.balls % 6;
-                                        const economy = bowler.balls > 0 ? ((bowler.runs / (bowler.balls / 6)).toFixed(2)) : '0.00';
-                                        const isBowling = bowler.isBowling;
+                                    {Object.entries(state.scorecard.bowling).map(([playerName, stats], idx) => {
+                                        const isBowling = playerName === state.bowler;
 
                                         return (
                                             <tr
@@ -386,14 +405,14 @@ export default function MatchScorecard() {
                                                 }}
                                             >
                                                 <td style={{ padding: '0.75rem', fontWeight: isBowling ? 700 : 500 }}>
-                                                    {bowler.name}
+                                                    {playerName}
                                                     {isBowling && <span style={{ marginLeft: '0.5rem', color: 'var(--primary)', fontSize: '0.75rem' }}>*</span>}
                                                 </td>
-                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{overs}.{balls}</td>
-                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{bowler.maidens || 0}</td>
-                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{bowler.runs}</td>
-                                                <td style={{ textAlign: 'center', padding: '0.75rem', fontWeight: 600 }}>{bowler.wickets}</td>
-                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{economy}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.overs || '0.0'}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.maidens || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.runs || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem', fontWeight: 600 }}>{stats.wickets || 0}</td>
+                                                <td style={{ textAlign: 'center', padding: '0.75rem' }}>{stats.economy || '0.00'}</td>
                                             </tr>
                                         );
                                     })}
