@@ -10,15 +10,18 @@ export const createMatchPost = async (eventType, eventData, matchId) => {
     try {
         const post = {
             content: generatePostContent(eventType, eventData),
+            userName: '🤖 GullyBot',
+            type: 'bot',
             author: {
                 uid: 'banterbot',
-                displayName: '🤖 BanterBot',
+                displayName: '🤖 GullyBot',
                 photoURL: null
             },
             matchId: matchId,
             eventType: eventType,
             createdAt: new Date().toISOString(),
-            likes: [],
+            likes: 0,
+            likedBy: [],
             comments: []
         };
 

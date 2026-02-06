@@ -160,6 +160,83 @@ export const useScorer = (initialState = {}) => {
         });
     }, []);
 
+    const changeBowler = useCallback((newName) => {
+        setMatchState(prev => {
+            if (!prev.bowler || prev.bowler === newName) {
+                // Just calling setBowler if no bowler selected or same name
+                return { ...prev, bowler: newName };
+            }
+
+            const newState = {
+                ...prev,
+                scorecard: deepCloneScorecard(prev.scorecard)
+            };
+
+            const oldName = prev.bowler;
+            if (!newState.scorecard.bowling[oldName]) {
+                newState.scorecard.bowling[oldName] = { overs: '0.0', runs: 0, wickets: 0, balls: 0, maidens: 0, dots: 0 };
+            }
+            if (!newState.scorecard.bowling[newName]) {
+                newState.scorecard.bowling[newName] = { overs: '0.0', runs: 0, wickets: 0, balls: 0, maidens: 0, dots: 0 };
+            }
+
+            const oldBowler = newState.scorecard.bowling[oldName];
+            const newBowler = newState.scorecard.bowling[newName];
+
+            // Reconstruct current over's contribution to bowling stats
+            let overBalls = 0;
+            let overRuns = 0;
+            let overWickets = 0;
+            let overDots = 0;
+
+            prev.ballsLog.forEach(ball => {
+                const isWide = ball.includes('Wd');
+                const isNoBall = ball.includes('NB');
+                const isWicket = ball === 'W';
+                const isDot = ball === '•';
+                const runs = parseInt(ball.replace(/\D/g, '')) || 0;
+
+                if (!isWide && !isNoBall) {
+                    overBalls += 1;
+                }
+
+                if (!ball.includes('B') && !ball.includes('LB')) {
+                    // Only count runs conceded by bowler (excludes byes/leg-byes)
+                    overRuns += runs + (isWide || isNoBall ? 1 : 0);
+                }
+
+                if (isWicket) overWickets += 1;
+                if (isDot) overDots += 1;
+            });
+
+            // Adjust stats
+            oldBowler.balls -= overBalls;
+            oldBowler.runs -= overRuns;
+            oldBowler.wickets -= overWickets;
+            oldBowler.dots -= overDots;
+
+            newBowler.balls += overBalls;
+            newBowler.runs += overRuns;
+            newBowler.wickets += overWickets;
+            newBowler.dots += overDots;
+
+            // Recalculate overs and economy for both
+            [oldBowler, newBowler].forEach(b => {
+                const bOvers = Math.floor(b.balls / 6);
+                const bBalls = b.balls % 6;
+                b.overs = `${bOvers}.${bBalls}`;
+                b.economy = b.balls > 0 ? ((b.runs / b.balls) * 6).toFixed(2) : '0.00';
+            });
+
+            return {
+                ...newState,
+                bowler: newName,
+                isPaused: false,
+                pauseReason: null
+            };
+        });
+    }, []);
+
     const updateDLS = useCallback((revisedTarget) => {
         setMatchState(prev => ({
             ...prev,

@@ -68,6 +68,7 @@ function ScorerBoard({ config }) {
         setNonStriker,
         setBatters,
         setBowler,
+        changeBowler,
         updateDLS
     } = useScorer(config);
 
@@ -76,6 +77,7 @@ function ScorerBoard({ config }) {
     const [showMoreOptions, setShowMoreOptions] = useState(false);
     const [showDLSModal, setShowDLSModal] = useState(false);
     const [showTransferModal, setShowTransferModal] = useState(false);
+    const [showBowlerChangeModal, setShowBowlerChangeModal] = useState(false);
     const [transferCode, setTransferCode] = useState(null);
 
     // DLS Modal State
@@ -649,6 +651,26 @@ function ScorerBoard({ config }) {
                                 }}
                                 onClick={() => {
                                     setShowMoreOptions(false);
+                                    setShowBowlerChangeModal(true);
+                                }}
+                            >
+                                <Settings2 size={24} color="var(--primary)" />
+                                <span>Change Bowler</span>
+                            </button>
+
+                            <button
+                                className="btn"
+                                style={{
+                                    padding: '1.5rem',
+                                    background: 'var(--card-bg)',
+                                    border: '1px solid var(--card-border)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '1rem',
+                                    fontSize: '1.1rem'
+                                }}
+                                onClick={() => {
+                                    setShowMoreOptions(false);
                                     setShowDLSModal(true);
                                 }}
                             >
@@ -738,6 +760,61 @@ function ScorerBoard({ config }) {
 
                             <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => setShowTransferModal(false)}>
                                 Done
+                            </button>
+                        </motion.div>
+                    </div>
+                )}
+
+                {/* Change Bowler Modal (Fixed Overlay) */}
+                {showBowlerChangeModal && (
+                    <div style={{
+                        position: 'fixed',
+                        inset: 0,
+                        background: 'rgba(0,0,0,0.95)',
+                        backdropFilter: 'blur(10px)',
+                        zIndex: 6000,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '2rem',
+                        color: 'white'
+                    }}>
+                        <motion.div
+                            initial={{ scale: 0.9, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="card"
+                            style={{ maxWidth: '450px', width: '100%', textAlign: 'center' }}
+                        >
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '1.5rem' }}>Correct Bowler Name</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '1rem', maxHeight: '50vh', overflowY: 'auto', padding: '1rem' }}>
+                                {getAvailableBowlers().map(name => (
+                                    <button
+                                        key={name}
+                                        className="btn"
+                                        style={{
+                                            padding: '1.25rem',
+                                            fontSize: '1rem',
+                                            fontWeight: 700,
+                                            background: 'var(--card-bg)',
+                                            border: '1px solid var(--card-border)',
+                                            borderRadius: 'var(--radius-md)',
+                                            color: 'white'
+                                        }}
+                                        onClick={() => {
+                                            changeBowler(name);
+                                            setShowBowlerChangeModal(false);
+                                        }}
+                                    >
+                                        {name}
+                                    </button>
+                                ))}
+                            </div>
+                            <button
+                                className="btn"
+                                style={{ marginTop: '2rem', width: '100%', padding: '1rem', background: 'rgba(255,255,255,0.1)', color: 'white' }}
+                                onClick={() => setShowBowlerChangeModal(false)}
+                            >
+                                Cancel
                             </button>
                         </motion.div>
                     </div>
@@ -967,6 +1044,24 @@ function ScorerBoard({ config }) {
                                 {matchState.scorecard.bowling[matchState.bowler]?.overs || '0.0'}-{matchState.scorecard.bowling[matchState.bowler]?.maidens || 0}-{matchState.scorecard.bowling[matchState.bowler]?.runs || 0}-{matchState.scorecard.bowling[matchState.bowler]?.wickets || 0}
                             </p>
                         </div>
+                        <button
+                            onClick={() => setShowBowlerChangeModal(true)}
+                            style={{
+                                alignSelf: 'center',
+                                background: 'white',
+                                border: 'none',
+                                borderRadius: '50%',
+                                padding: '0.4rem',
+                                color: 'var(--primary)',
+                                cursor: 'pointer',
+                                fontSize: '0.65rem',
+                                fontWeight: 800,
+                                marginLeft: '0.5rem'
+                            }}
+                            title="Correct Bowler Name"
+                        >
+                            EDIT
+                        </button>
                     </div>
                 </div>
             </section>
