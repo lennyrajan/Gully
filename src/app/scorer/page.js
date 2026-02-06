@@ -62,7 +62,10 @@ function ScorerBoard({ config }) {
     const [showWicketModal, setShowWicketModal] = useState(false);
     const [showScorecard, setShowScorecard] = useState(false);
     const [selectedExtra, setSelectedExtra] = useState(null);
-    const [fielder, setFielder] = useState('');
+    const [fielder1, setFielder1] = useState('');
+    const [fielder2, setFielder2] = useState('');
+    const [wicketTypePending, setWicketTypePending] = useState(null);
+    const [showFielderModal, setShowFielderModal] = useState(false);
 
     const handleRunClick = (runs) => {
         if (matchState.isPaused) return;
@@ -75,14 +78,36 @@ function ScorerBoard({ config }) {
         setSelectedExtra(null);
     };
 
-    const handleWicket = (type) => {
-        if (['Caught', 'Run Out'].includes(type) && !fielder) {
-            const f = prompt(`Enter ${type === 'Caught' ? 'Fielder' : 'Fielder'} Name:`);
-            addBall({ runs: 0, isExtra: false, isWicket: true, wicketType: type, fielder: f || 'Fielder' });
+    const handleWicketClick = (type) => {
+        if (type === 'Stumped') {
+            const team = matchState.bowlingTeam;
+            const wkIndex = team.wicketKeeper;
+            const wkName = (wkIndex !== null && wkIndex !== undefined) ? team.players[wkIndex] : 'Wicket Keeper';
+            addBall({ runs: 0, isExtra: false, isWicket: true, wicketType: type, fielder: wkName });
+            setShowWicketModal(false);
+        } else if (['Caught', 'Run Out'].includes(type)) {
+            setWicketTypePending(type);
+            setShowWicketModal(false);
+            setShowFielderModal(true);
         } else {
             addBall({ runs: 0, isExtra: false, isWicket: true, wicketType: type });
+            setShowWicketModal(false);
         }
-        setShowWicketModal(false);
+    };
+
+    const confirmWicket = () => {
+        const fielderText = fielder2 ? `${fielder1} / ${fielder2}` : fielder1;
+        addBall({
+            runs: 0,
+            isExtra: false,
+            isWicket: true,
+            wicketType: wicketTypePending,
+            fielder: fielderText || 'Fielder'
+        });
+        setFielder1('');
+        setFielder2('');
+        setWicketTypePending(null);
+        setShowFielderModal(false);
     };
 
     const finalizeMatch = () => {
@@ -369,7 +394,7 @@ function ScorerBoard({ config }) {
                         </div>
 
                         <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--primary)', marginBottom: '1rem' }}>{matchState.battingTeam.name} Batting</h3>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)', marginBottom: '2rem' }}>
                             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.75rem', fontWeight: 700, opacity: 0.5 }}>
                                 <span>BATTER</span><span>R</span><span>B</span><span>SR</span>
                             </div>
@@ -380,6 +405,23 @@ function ScorerBoard({ config }) {
                                         <span style={{ fontSize: '0.7rem', opacity: 0.6 }}>{stats.dismissal || 'not out'}</span>
                                     </div>
                                     <span>{stats.runs}</span><span>{stats.balls}</span><span>{stats.balls > 0 ? ((stats.runs / stats.balls) * 100).toFixed(1) : '0.0'}</span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--accent)', marginBottom: '1rem' }}>{matchState.bowlingTeam.name} Bowling</h3>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', background: 'var(--card-border)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr', background: 'var(--card-bg)', padding: '0.75rem', fontSize: '0.65rem', fontWeight: 700, opacity: 0.5 }}>
+                                <span>BOWLER</span><span>O</span><span>M</span><span>DOTS</span><span>R</span><span>W</span>
+                            </div>
+                            {Object.entries(matchState.scorecard.bowling).map(([name, stats]) => (
+                                <div key={name} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1.5fr 1fr 1fr', background: 'var(--card-bg)', padding: '1rem', fontSize: '0.85rem' }}>
+                                    <span style={{ fontWeight: 600 }}>{getPlayerDisplayName(name, 'bowling')}</span>
+                                    <span>{stats.overs}</span>
+                                    <span>{stats.maidens}</span>
+                                    <span>{stats.dots}</span>
+                                    <span>{stats.runs}</span>
+                                    <span style={{ fontWeight: 700, color: 'var(--accent)' }}>{stats.wickets}</span>
                                 </div>
                             ))}
                         </div>
@@ -404,10 +446,66 @@ function ScorerBoard({ config }) {
                             <h2 style={{ marginBottom: '1.5rem', textAlign: 'center' }}>Choose Wicket Type</h2>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                                 {['Bowled', 'Caught', 'LBW', 'Run Out', 'Stumped', 'Other'].map(type => (
-                                    <button key={type} className="btn" onClick={() => handleWicket(type)} style={{ background: 'var(--card-border)', padding: '1.5rem' }}>{type}</button>
+                                    <button key={type} className="btn" onClick={() => handleWicketClick(type)} style={{ background: 'var(--card-border)', padding: '1.5rem' }}>{type}</button>
                                 ))}
                             </div>
                             <button className="btn" onClick={() => setShowWicketModal(false)} style={{ width: '100%', marginTop: '1.5rem', background: 'transparent', border: '1px solid var(--card-border)' }}>Cancel</button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Fielder Selection Modal */}
+            <AnimatePresence>
+                {showFielderModal && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', zIndex: 6000, display: 'flex', alignItems: 'flex-end' }}>
+                        <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }} style={{ width: '100%', background: 'var(--background)', borderTopLeftRadius: '2rem', borderTopRightRadius: '2rem', padding: '2rem', maxHeight: '90vh', overflowY: 'auto' }}>
+                            <h2 style={{ textAlign: 'center', marginBottom: '1.5rem' }}>Wicket: {wicketTypePending}</h2>
+                            <p style={{ textAlign: 'center', opacity: 0.6, marginBottom: '2rem' }}>Select the fielder(s) involved</p>
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                <div>
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block', color: 'var(--primary)' }}>Fielder 1</label>
+                                    <select
+                                        className="input-field"
+                                        style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white' }}
+                                        value={fielder1}
+                                        onChange={(e) => setFielder1(e.target.value)}
+                                    >
+                                        <option value="">Choose Fielder...</option>
+                                        {matchState.bowlingTeam.players.map(p => (
+                                            <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {wicketTypePending === 'Run Out' && (
+                                    <div>
+                                        <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block', color: 'var(--accent)' }}>Fielder 2 (Optional)</label>
+                                        <select
+                                            className="input-field"
+                                            style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white' }}
+                                            value={fielder2}
+                                            onChange={(e) => setFielder2(e.target.value)}
+                                        >
+                                            <option value="">Choose Fielder...</option>
+                                            {matchState.bowlingTeam.players.map(p => (
+                                                <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                <button
+                                    className="btn btn-primary"
+                                    style={{ width: '100%', padding: '1.25rem', marginTop: '1rem' }}
+                                    onClick={confirmWicket}
+                                    disabled={!fielder1}
+                                >
+                                    Confirm Wicket
+                                </button>
+                                <button className="btn" onClick={() => setShowFielderModal(false)} style={{ background: 'transparent', border: '1px solid var(--card-border)' }}>Cancel</button>
+                            </div>
                         </motion.div>
                     </motion.div>
                 )}

@@ -33,12 +33,13 @@ export const useScorer = (initialState = {}) => {
         isPaused: true, // For selection prompts
         pauseReason: 'INIT', // INIT, WICKET, OVER
         lastBowler: null,
+        overRuns: 0,
         ...initialState
     });
 
     const setStriker = (name) => setMatchState(prev => ({ ...prev, striker: name, isPaused: !prev.nonStriker || !prev.bowler }));
     const setNonStriker = (name) => setMatchState(prev => ({ ...prev, nonStriker: name, isPaused: !prev.striker || !prev.bowler }));
-    const setBowler = (name) => setMatchState(prev => ({ ...prev, bowler: name, isPaused: !prev.striker || !prev.nonStriker, ballsLog: [] }));
+    const setBowler = (name) => setMatchState(prev => ({ ...prev, bowler: name, isPaused: !prev.striker || !prev.nonStriker, ballsLog: [], overRuns: 0 }));
 
     const overs = useMemo(() => {
         const fullOvers = Math.floor(matchState.balls / 6);
@@ -66,7 +67,7 @@ export const useScorer = (initialState = {}) => {
                 newState.scorecard.batting[prev.striker] = { runs: 0, balls: 0, fours: 0, sixes: 0, dismissal: '' };
             }
             if (!newState.scorecard.bowling[prev.bowler]) {
-                newState.scorecard.bowling[prev.bowler] = { overs: '0.0', runs: 0, wickets: 0, balls: 0 };
+                newState.scorecard.bowling[prev.bowler] = { overs: '0.0', runs: 0, wickets: 0, balls: 0, maidens: 0, dots: 0 };
             }
 
             const currentBatter = newState.scorecard.batting[prev.striker];
@@ -82,9 +83,11 @@ export const useScorer = (initialState = {}) => {
                     currentBatter.balls += 1;
                     currentBatter.runs += runs;
                     currentBowler.runs += runs + 1;
+                    newState.overRuns += runs + 1;
                     newState.ballsLog = [...prev.ballsLog, `${runs}NB`];
                 } else if (extraType === 'wide') {
                     currentBowler.runs += runs + 1;
+                    newState.overRuns += runs + 1;
                     newState.ballsLog = [...prev.ballsLog, `${runs}Wd`];
                 } else {
                     // Byes/LegByes - batter doesn't get runs, but ball is legal
@@ -103,6 +106,8 @@ export const useScorer = (initialState = {}) => {
 
                 currentBowler.runs += runs;
                 currentBowler.balls += 1;
+                newState.overRuns += runs;
+                if (runs === 0) currentBowler.dots += 1;
                 newState.ballsLog = [...prev.ballsLog, runs === 0 ? '•' : runs];
             }
 
@@ -136,6 +141,7 @@ export const useScorer = (initialState = {}) => {
             const isEndOfOver = isLegalBall && newState.balls % 6 === 0;
 
             if (isEndOfOver && !newState.isPaused) {
+                if (newState.overRuns === 0) currentBowler.maidens += 1;
                 newState.isPaused = true;
                 newState.pauseReason = 'OVER';
                 newState.lastBowler = prev.bowler;
