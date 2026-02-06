@@ -117,6 +117,12 @@ export default function MatchScorecard() {
     const state = matchData.state || {};
     const isLive = matchData.status === 'LIVE' || matchData.status === 'live';
 
+    // Debug: Log the match data structure
+    console.log('Match Data:', matchData);
+    console.log('State:', state);
+    console.log('Batting Team:', state.battingTeam);
+    console.log('Bowling Team:', state.bowlingTeam);
+
     return (
         <main style={{
             minHeight: '100vh',
@@ -255,7 +261,7 @@ export default function MatchScorecard() {
                 </motion.div>
 
                 {/* Batting Scorecard */}
-                {state.battingTeam && state.battingTeam.batsmen && state.battingTeam.batsmen.length > 0 && (
+                {state.battingTeam && state.battingTeam.batsmen && state.battingTeam.batsmen.length > 0 ? (
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -308,6 +314,33 @@ export default function MatchScorecard() {
                                 </tbody>
                             </table>
                         </div>
+                    </motion.div>
+                ) : (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="card"
+                        style={{ marginBottom: '2rem', padding: '2rem', textAlign: 'center' }}
+                    >
+                        <Users size={48} style={{ opacity: 0.3, margin: '0 auto 1rem' }} />
+                        <p style={{ opacity: 0.7 }}>
+                            {state.totalRuns === 0 ? 'Match just started - no balls bowled yet' : 'Batting scorecard will appear once scoring begins'}
+                        </p>
+                        {/* Debug info */}
+                        <details style={{ marginTop: '1rem', textAlign: 'left', fontSize: '0.75rem', opacity: 0.5 }}>
+                            <summary style={{ cursor: 'pointer' }}>Debug Info</summary>
+                            <pre style={{ overflow: 'auto', padding: '1rem', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', marginTop: '0.5rem' }}>
+                                {JSON.stringify({
+                                    hasBattingTeam: !!state.battingTeam,
+                                    hasBatsmen: !!state.battingTeam?.batsmen,
+                                    batsmenLength: state.battingTeam?.batsmen?.length,
+                                    totalRuns: state.totalRuns,
+                                    wickets: state.wickets,
+                                    balls: state.balls
+                                }, null, 2)}
+                            </pre>
+                        </details>
                     </motion.div>
                 )}
 
