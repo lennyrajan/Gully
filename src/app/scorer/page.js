@@ -328,7 +328,8 @@ function ScorerBoard({ config }) {
                         <Trophy size={48} color="var(--primary)" style={{ margin: '0 auto 1rem' }} />
                         <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>
                             {matchState.pauseReason === 'INIT' ? 'Match Initialization' :
-                                matchState.pauseReason === 'WICKET' ? 'Wicket: Select New Batter' : 'New Over: Select Bowler'}
+                                matchState.pauseReason === 'WICKET' ? 'Wicket: Select New Batter' :
+                                    matchState.pauseReason === 'INNINGS_COMPLETE' ? 'Innings Complete!' : 'New Over: Select Bowler'}
                         </h2>
                         <p style={{ opacity: 0.6 }}>Choose the next player to continue</p>
                     </div>
@@ -471,6 +472,30 @@ function ScorerBoard({ config }) {
                                             );
                                         })}
                                 </select>
+                            </div>
+                        )}
+
+                        {matchState.pauseReason === 'INNINGS_COMPLETE' && (
+                            <div style={{ textAlign: 'center' }}>
+                                <div style={{ fontSize: '3rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--primary)' }}>
+                                    {matchState.totalRuns}/{matchState.wickets}
+                                </div>
+                                <p style={{ fontSize: '1.1rem', opacity: 0.8, marginBottom: '2rem' }}>
+                                    {matchState.battingTeam.name} finished their innings.
+                                </p>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                    <button
+                                        className="btn btn-primary"
+                                        style={{ padding: '1.5rem', fontSize: '1.1rem' }}
+                                        onClick={finalizeMatch}
+                                    >
+                                        {matchState.innings === 1 ? 'Start 2nd Innings' : 'Finalize Match'}
+                                    </button>
+                                    <p style={{ fontSize: '0.85rem', opacity: 0.5 }}>
+                                        Check the scorecard for full details before continuing.
+                                    </p>
+                                </div>
                             </div>
                         )}
                     </div>
