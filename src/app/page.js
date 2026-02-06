@@ -340,15 +340,18 @@ export default function Home() {
                       {/* Match Status Badge */}
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{
-                          background: match.status?.toUpperCase() === 'LIVE' ? 'var(--error)' : 'var(--success)',
-                          color: 'white',
+                          fontSize: '0.75rem',
                           padding: '0.25rem 0.75rem',
                           borderRadius: '12px',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          textTransform: 'uppercase'
+                          background: (match.status?.toUpperCase() === 'FINISHED' || match.status?.toUpperCase() === 'ABANDONED')
+                            ? 'rgba(100, 100, 100, 0.2)'
+                            : 'rgba(239, 68, 68, 0.2)',
+                          color: (match.status?.toUpperCase() === 'FINISHED' || match.status?.toUpperCase() === 'ABANDONED')
+                            ? 'rgba(200, 200, 200, 0.9)'
+                            : '#ef4444',
+                          fontWeight: 600
                         }}>
-                          {match.status?.toUpperCase() === 'LIVE' ? '🔴 Live' : '✓ Completed'}
+                          {(match.status?.toUpperCase() === 'FINISHED' || match.status?.toUpperCase() === 'ABANDONED') ? '✓ Completed' : '🔴 Live'}
                         </span>
                         <ChevronRight size={20} opacity={0.5} />
                       </div>
@@ -361,11 +364,25 @@ export default function Home() {
                           marginBottom: '0.5rem'
                         }}>
                           {match.teamA?.name || 'Team A'}
-                          {match.teamA?.score && (
-                            <span style={{ marginLeft: '0.5rem', color: 'var(--primary)' }}>
-                              {match.teamA.score}/{match.teamA.wickets}
-                            </span>
-                          )}
+                          {(() => {
+                            // For ongoing matches, show current state
+                            if (match.state && match.innings === 1) {
+                              return (
+                                <span style={{ marginLeft: '0.5rem', color: 'var(--primary)' }}>
+                                  {match.state.totalRuns}/{match.state.wickets}
+                                </span>
+                              );
+                            }
+                            // For completed first innings, show from completedInnings
+                            else if (match.completedInnings?.[0]) {
+                              return (
+                                <span style={{ marginLeft: '0.5rem', color: 'var(--primary)' }}>
+                                  {match.completedInnings[0].totalRuns}/{match.completedInnings[0].wickets}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                         <div style={{ fontSize: '0.875rem', opacity: 0.7 }}>vs</div>
                         <div style={{
@@ -374,11 +391,25 @@ export default function Home() {
                           marginTop: '0.5rem'
                         }}>
                           {match.teamB?.name || 'Team B'}
-                          {match.teamB?.score && (
-                            <span style={{ marginLeft: '0.5rem', color: 'var(--primary)' }}>
-                              {match.teamB.score}/{match.teamB.wickets}
-                            </span>
-                          )}
+                          {(() => {
+                            // For 2nd innings ongoing, show current state
+                            if (match.state && match.innings === 2) {
+                              return (
+                                <span style={{ marginLeft: '0.5rem', color: 'var(--primary)' }}>
+                                  {match.state.totalRuns}/{match.state.wickets}
+                                </span>
+                              );
+                            }
+                            // For completed second innings, show from completedInnings
+                            else if (match.completedInnings?.[1]) {
+                              return (
+                                <span style={{ marginLeft: '0.5rem', color: 'var(--primary)' }}>
+                                  {match.completedInnings[1].totalRuns}/{match.completedInnings[1].wickets}
+                                </span>
+                              );
+                            }
+                            return null;
+                          })()}
                         </div>
                       </div>
 
