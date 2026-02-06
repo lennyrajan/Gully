@@ -27,6 +27,7 @@ export const useScorer = (initialState = {}) => {
             history: [],
             completedInnings: [], // Preserve multi-innings history
             ballsLog: [],
+            commentary: [], // Ball-by-ball commentary
             isPaused: true,
             pauseReason: 'INIT',
             lastBowler: null,
@@ -347,6 +348,46 @@ export const useScorer = (initialState = {}) => {
                 newState.lastBowler = prev.bowler;
                 newState.bowler = null;
             }
+
+            // Generate Ball-by-Ball Commentary
+            const generateCommentary = () => {
+                // Calculate ball number for display (legal balls only for over number)
+                const legalBalls = ballIsLegal ? newState.balls : prev.balls;
+                const overNum = Math.floor(legalBalls / 6);
+                const ballNum = (legalBalls % 6) + (ballIsLegal ? 0 : 1); // If illegal, use previous ball number
+                const ballNotation = `${overNum}.${ballNum}`;
+
+                if (isWicket && !isFreeHitDismissal) {
+                    const dismissedPlayer = isStrikerOut ? prev.striker : prev.nonStriker;
+                    return `${ballNotation}: WICKET! ${dismissedPlayer} ${wicketType}`;
+                }
+
+                if (isExtra) {
+                    if (extraType === 'wide') {
+                        return `${ballNotation}: ${prev.bowler} bowls a wide${runs > 0 ? `, ${runs} run${runs > 1 ? 's' : ''}` : ''}`;
+                    } else if (extraType === 'noBall') {
+                        return `${ballNotation}: ${prev.bowler} bowls a no-ball${runs > 0 ? `, ${prev.striker} scores ${runs}` : ''}`;
+                    } else if (extraType === 'bye') {
+                        return `${ballNotation}: ${runs} bye${runs > 1 ? 's' : ''}`;
+                    } else if (extraType === 'legBye') {
+                        return `${ballNotation}: ${runs} leg bye${runs > 1 ? 's' : ''}`;
+                    }
+                }
+
+                if (runs === 0) {
+                    return `${ballNotation}: ${prev.striker} defends`;
+                } else if (runs === 4) {
+                    return `${ballNotation}: ${prev.striker} hits FOUR!`;
+                } else if (runs === 6) {
+                    return `${ballNotation}: ${prev.striker} hits SIX!`;
+                } else if (runs === 1) {
+                    return `${ballNotation}: ${prev.striker} takes a single`;
+                } else {
+                    return `${ballNotation}: ${prev.striker} takes ${runs} runs`;
+                }
+            };
+
+            newState.commentary = [...prev.commentary, generateCommentary()];
 
             // 3. Striker Rotation (ICC Law 18.3)
             // Batsmen cross if odd runs are scored OR at end of over
