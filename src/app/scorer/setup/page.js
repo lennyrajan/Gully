@@ -171,6 +171,28 @@ export default function MatchSetup() {
             finalConfig.teamB = matchConfig.teamA;
         }
 
+        // Generate unique match ID and initialize in Firestore
+        const matchId = `match_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        finalConfig.matchId = matchId;
+        finalConfig.status = 'LIVE';
+        finalConfig.createdAt = new Date().toISOString();
+
+        try {
+            await setDoc(doc(db, 'matches', matchId), {
+                ...finalConfig,
+                lastUpdated: new Date().toISOString(),
+                state: {
+                    totalRuns: 0,
+                    wickets: 0,
+                    balls: 0,
+                    scorecard: { batting: {}, bowling: {} }
+                }
+            });
+        } catch (error) {
+            console.error("Error initializing match in Firestore:", error);
+            // We continue even if Firestore fails, as local scoring is still possible
+        }
+
         localStorage.setItem('currentMatchConfig', JSON.stringify(finalConfig));
         router.push('/scorer');
     };

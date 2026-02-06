@@ -1,6 +1,6 @@
-"use client";
-
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 export const useScorer = (initialState = {}) => {
     const [matchState, setMatchState] = useState(() => {
@@ -28,9 +28,28 @@ export const useScorer = (initialState = {}) => {
             pauseReason: 'INIT',
             lastBowler: null,
             overRuns: 0,
-            ...cleanInitial
+            ...cleanInitial,
+            matchId: initialState.matchId || null
         };
     });
+
+    useEffect(() => {
+        if (!matchState.matchId) return;
+
+        const syncData = async () => {
+            try {
+                const { history: _h, ...stateToSync } = matchState;
+                await updateDoc(doc(db, 'matches', matchState.matchId), {
+                    state: stateToSync,
+                    lastUpdated: new Date().toISOString()
+                });
+            } catch (error) {
+                console.error("Error syncing to Firestore:", error);
+            }
+        };
+
+        syncData();
+    }, [matchState]);
 
     const deepCloneScorecard = (scorecard) => {
         const newScorecard = { batting: {}, bowling: {} };

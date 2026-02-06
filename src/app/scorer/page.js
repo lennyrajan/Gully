@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useScorer } from '@/hooks/useScorer';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 import {
     ChevronLeft,
     RotateCcw,
@@ -123,12 +125,25 @@ function ScorerBoard({ config }) {
         setWicketTypePending(null);
     };
 
-    const finalizeMatch = () => {
+    const finalizeMatch = async () => {
         const stats = {
             date: new Date().toLocaleDateString(),
             teams: `${matchState.battingTeam.name} vs ${matchState.bowlingTeam.name}`,
             scorecard: matchState.scorecard
         };
+
+        // Update Firestore status
+        if (matchState.matchId) {
+            try {
+                await updateDoc(doc(db, 'matches', matchState.matchId), {
+                    status: 'FINISHED',
+                    lastUpdated: new Date().toISOString()
+                });
+            } catch (error) {
+                console.error("Error finalising match in Firestore:", error);
+            }
+        }
+
         const history = JSON.parse(localStorage.getItem('matchHistory') || '[]');
         history.push(stats);
         localStorage.setItem('matchHistory', JSON.stringify(history));
@@ -329,7 +344,26 @@ function ScorerBoard({ config }) {
                 </button>
                 <div style={{ textAlign: 'center' }}>
                     <h1 style={{ fontSize: '1rem', opacity: 0.7 }}>{matchState.battingTeam.name} vs {matchState.bowlingTeam.name}</h1>
-                    <p style={{ fontWeight: 600 }}>1st Innings • Max {matchState.maxOvers} Ov</p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+                        <p style={{ fontWeight: 600 }}>1st Innings • Max {matchState.maxOvers} Ov</p>
+                        {matchState.matchId && (
+                            <span style={{
+                                fontSize: '0.65rem',
+                                background: 'rgba(34, 197, 94, 0.1)',
+                                color: '#22c55e',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontWeight: 700,
+                                textTransform: 'uppercase'
+                            }}>
+                                <span style={{ width: '6px', height: '6px', background: '#22c55e', borderRadius: '50%' }} />
+                                Live Sync
+                            </span>
+                        )}
+                    </div>
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button className="btn" style={{ padding: '0.5rem' }} onClick={() => setShowScorecard(true)}>
