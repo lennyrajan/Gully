@@ -65,7 +65,10 @@ function ScorerBoard({ config }) {
     const [fielder1, setFielder1] = useState('');
     const [fielder2, setFielder2] = useState('');
     const [wicketTypePending, setWicketTypePending] = useState(null);
+    const [isStrikerOutChoice, setIsStrikerOutChoice] = useState(true);
+    const [showWicketDetailModal, setShowWicketDetailModal] = useState(false);
     const [showFielderModal, setShowFielderModal] = useState(false);
+    const [newBatterPending, setNewBatterPending] = useState('');
 
     const handleRunClick = (runs) => {
         if (matchState.isPaused) return;
@@ -79,35 +82,47 @@ function ScorerBoard({ config }) {
     };
 
     const handleWicketClick = (type) => {
+        setWicketTypePending(type);
         if (type === 'Stumped') {
             const team = matchState.bowlingTeam;
             const wkIndex = team.wicketKeeper;
             const wkName = (wkIndex !== null && wkIndex !== undefined) ? team.players[wkIndex] : 'Wicket Keeper';
-            addBall({ runs: 0, isExtra: false, isWicket: true, wicketType: type, fielder: wkName });
-            setShowWicketModal(false);
-        } else if (['Caught', 'Run Out'].includes(type)) {
-            setWicketTypePending(type);
+            setFielder1(wkName);
+            setIsStrikerOutChoice(true);
             setShowWicketModal(false);
             setShowFielderModal(true);
         } else {
-            addBall({ runs: 0, isExtra: false, isWicket: true, wicketType: type });
             setShowWicketModal(false);
+            setShowFielderModal(true);
         }
     };
 
-    const confirmWicket = () => {
+    const confirmWicketDetails = () => {
         const fielderText = fielder2 ? `${fielder1} / ${fielder2}` : fielder1;
         addBall({
             runs: 0,
             isExtra: false,
             isWicket: true,
             wicketType: wicketTypePending,
-            fielder: fielderText || 'Fielder'
+            fielder: fielderText || 'Fielder',
+            isStrikerOut: isStrikerOutChoice
         });
         setFielder1('');
         setFielder2('');
-        setWicketTypePending(null);
         setShowFielderModal(false);
+    };
+
+    const handleStrikeChoice = (isNewBatterStriker) => {
+        const survivor = isStrikerOutChoice ? matchState.nonStriker : matchState.striker;
+        if (isNewBatterStriker) {
+            setStriker(newBatterPending);
+            setNonStriker(survivor);
+        } else {
+            setStriker(survivor);
+            setNonStriker(newBatterPending);
+        }
+        setNewBatterPending('');
+        setWicketTypePending(null);
     };
 
     const finalizeMatch = () => {
@@ -184,41 +199,81 @@ function ScorerBoard({ config }) {
                     </div>
 
                     <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                        {(!matchState.striker || matchState.pauseReason === 'WICKET') && (
+                        {matchState.pauseReason === 'WICKET' && !newBatterPending && (
                             <div>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--primary)' }}>Select Striker</label>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--primary)' }}>Select New Batter</label>
                                 <select
                                     className="input-field"
                                     style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.1rem' }}
-                                    onChange={(e) => setStriker(e.target.value)}
-                                    value={matchState.striker || ''}
+                                    onChange={(e) => setNewBatterPending(e.target.value)}
+                                    value={newBatterPending}
                                 >
-                                    <option value="" disabled>Choose Striker...</option>
-                                    {(getAvailableBatters().length > 0 ? getAvailableBatters() : ['Batter 1', 'Batter 2']).map(p => (
+                                    <option value="" disabled>Choose New Batter...</option>
+                                    {getAvailableBatters().map(p => (
                                         <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
                                     ))}
                                 </select>
                             </div>
                         )}
 
-                        {(!matchState.nonStriker && matchState.pauseReason === 'INIT') && (
-                            <div>
-                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--primary)' }}>Select Non-Striker</label>
-                                <select
-                                    className="input-field"
-                                    style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.1rem' }}
-                                    onChange={(e) => setNonStriker(e.target.value)}
-                                    value={matchState.nonStriker || ''}
-                                >
-                                    <option value="" disabled>Choose Non-Striker...</option>
-                                    {(getAvailableBatters().map(p => (
-                                        <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
-                                    )))}
-                                </select>
+                        {matchState.pauseReason === 'WICKET' && newBatterPending && (
+                            <div style={{ textAlign: 'center' }}>
+                                <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1.5rem', display: 'block', color: 'var(--accent)' }}>Who is on Strike?</label>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                    <button
+                                        className="btn btn-primary"
+                                        style={{ padding: '1.5rem', fontSize: '1rem' }}
+                                        onClick={() => handleStrikeChoice(true)}
+                                    >
+                                        {newBatterPending}<br />
+                                        <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>(New Batter)</span>
+                                    </button>
+                                    <button
+                                        className="btn btn-primary"
+                                        style={{ padding: '1.5rem', fontSize: '1rem', background: 'var(--card-border)' }}
+                                        onClick={() => handleStrikeChoice(false)}
+                                    >
+                                        {isStrikerOutChoice ? matchState.nonStriker : matchState.striker}<br />
+                                        <span style={{ fontSize: '0.7rem', opacity: 0.7 }}>(Survivor)</span>
+                                    </button>
+                                </div>
                             </div>
                         )}
 
-                        {(!matchState.bowler || matchState.pauseReason === 'OVER' || matchState.pauseReason === 'INIT') && (
+                        {matchState.pauseReason === 'INIT' && (
+                            <>
+                                <div>
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--primary)' }}>Select Striker</label>
+                                    <select
+                                        className="input-field"
+                                        style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.1rem' }}
+                                        onChange={(e) => setStriker(e.target.value)}
+                                        value={matchState.striker || ''}
+                                    >
+                                        <option value="" disabled>Choose Striker...</option>
+                                        {getAvailableBatters().map(p => (
+                                            <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div style={{ marginTop: '1.5rem' }}>
+                                    <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--primary)' }}>Select Non-Striker</label>
+                                    <select
+                                        className="input-field"
+                                        style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white', fontSize: '1.1rem' }}
+                                        onChange={(e) => setNonStriker(e.target.value)}
+                                        value={matchState.nonStriker || ''}
+                                    >
+                                        <option value="" disabled>Choose Non-Striker...</option>
+                                        {getAvailableBatters().filter(p => p !== matchState.striker).map(p => (
+                                            <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </>
+                        )}
+
+                        {matchState.pauseReason === 'OVER' && (
                             <div>
                                 <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--accent)' }}>Select Bowler</label>
                                 <select
@@ -471,8 +526,9 @@ function ScorerBoard({ config }) {
                                         style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white' }}
                                         value={fielder1}
                                         onChange={(e) => setFielder1(e.target.value)}
+                                        disabled={wicketTypePending === 'Stumped'}
                                     >
-                                        <option value="">Choose Fielder...</option>
+                                        <option value="">{wicketTypePending === 'Stumped' ? fielder1 : 'Choose Fielder...'}</option>
                                         {matchState.bowlingTeam.players.map(p => (
                                             <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
                                         ))}
@@ -480,26 +536,57 @@ function ScorerBoard({ config }) {
                                 </div>
 
                                 {wicketTypePending === 'Run Out' && (
-                                    <div>
-                                        <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block', color: 'var(--accent)' }}>Fielder 2 (Optional)</label>
-                                        <select
-                                            className="input-field"
-                                            style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white' }}
-                                            value={fielder2}
-                                            onChange={(e) => setFielder2(e.target.value)}
-                                        >
-                                            <option value="">Choose Fielder...</option>
-                                            {matchState.bowlingTeam.players.map(p => (
-                                                <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
-                                            ))}
-                                        </select>
-                                    </div>
+                                    <>
+                                        <div>
+                                            <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '0.5rem', display: 'block', color: 'var(--accent)' }}>Fielder 2 (Optional)</label>
+                                            <select
+                                                className="input-field"
+                                                style={{ width: '100%', padding: '1rem', background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderRadius: '12px', color: 'white' }}
+                                                value={fielder2}
+                                                onChange={(e) => setFielder2(e.target.value)}
+                                            >
+                                                <option value="">Choose Fielder...</option>
+                                                {matchState.bowlingTeam.players.map(p => (
+                                                    <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style={{ fontSize: '0.875rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--error)', textAlign: 'center' }}>Who was Out?</label>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                                <button
+                                                    className="btn"
+                                                    style={{
+                                                        padding: '1rem',
+                                                        background: isStrikerOutChoice ? 'var(--error)' : 'var(--card-border)',
+                                                        color: 'white',
+                                                        border: isStrikerOutChoice ? 'none' : '1px solid var(--card-border)'
+                                                    }}
+                                                    onClick={() => setIsStrikerOutChoice(true)}
+                                                >
+                                                    Striker<br /><span style={{ fontSize: '0.7rem', opacity: 0.8 }}>{matchState.striker}</span>
+                                                </button>
+                                                <button
+                                                    className="btn"
+                                                    style={{
+                                                        padding: '1rem',
+                                                        background: !isStrikerOutChoice ? 'var(--error)' : 'var(--card-border)',
+                                                        color: 'white',
+                                                        border: !isStrikerOutChoice ? 'none' : '1px solid var(--card-border)'
+                                                    }}
+                                                    onClick={() => setIsStrikerOutChoice(false)}
+                                                >
+                                                    Non-Striker<br /><span style={{ fontSize: '0.7rem', opacity: 0.8 }}>{matchState.nonStriker}</span>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </>
                                 )}
 
                                 <button
                                     className="btn btn-primary"
                                     style={{ width: '100%', padding: '1.25rem', marginTop: '1rem' }}
-                                    onClick={confirmWicket}
+                                    onClick={confirmWicketDetails}
                                     disabled={!fielder1}
                                 >
                                     Confirm Wicket

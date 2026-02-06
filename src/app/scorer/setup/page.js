@@ -58,13 +58,21 @@ export default function MatchSetup() {
     };
 
     const handleRoleChange = (team, role, index) => {
-        setMatchConfig(prev => ({
-            ...prev,
-            [team]: {
-                ...prev[team],
-                [role]: prev[team][role] === index ? null : index
+        setMatchConfig(prev => {
+            const teamData = { ...prev[team] };
+            const isRemoving = teamData[role] === index;
+
+            if (isRemoving) {
+                teamData[role] = null;
+            } else {
+                teamData[role] = index;
+                // If setting Captain, remove from Vice Captain and vice-versa
+                if (role === 'captain' && teamData.viceCaptain === index) teamData.viceCaptain = null;
+                if (role === 'viceCaptain' && teamData.captain === index) teamData.captain = null;
             }
-        }));
+
+            return { ...prev, [team]: teamData };
+        });
     };
 
     const loadSavedTeam = (teamKey, targetTeam) => {

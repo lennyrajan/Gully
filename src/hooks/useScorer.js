@@ -60,7 +60,7 @@ export const useScorer = (initialState = {}) => {
                 scorecard: JSON.parse(JSON.stringify(prev.scorecard))
             };
 
-            const { runs, isExtra, extraType, isWicket, wicketType, fielder } = ballData;
+            const { runs, isExtra, extraType, isWicket, wicketType, fielder, isStrikerOut = true } = ballData;
 
             // Initialize player stats if not exists
             if (!newState.scorecard.batting[prev.striker]) {
@@ -114,22 +114,35 @@ export const useScorer = (initialState = {}) => {
             // 2. Handle Wickets
             if (isWicket) {
                 newState.wickets += 1;
-                currentBowler.wickets += 1;
+
+                // Credit bowler only for certain types
+                const countsForBowler = ['Bowled', 'Caught', 'LBW', 'Stumped'].includes(wicketType);
+                if (countsForBowler) {
+                    currentBowler.wickets += 1;
+                }
+
+                const outPlayerName = isStrikerOut ? prev.striker : prev.nonStriker;
+                if (!newState.scorecard.batting[outPlayerName]) {
+                    newState.scorecard.batting[outPlayerName] = { runs: 0, balls: 0, fours: 0, sixes: 0, dismissal: '' };
+                }
+                const outBatterStats = newState.scorecard.batting[outPlayerName];
 
                 let dismissalText = '';
                 if (wicketType === 'Bowled') dismissalText = `b ${prev.bowler}`;
                 else if (wicketType === 'Caught') dismissalText = `c ${fielder || 'Fielder'} b ${prev.bowler}`;
                 else if (wicketType === 'LBW') dismissalText = `lbw b ${prev.bowler}`;
                 else if (wicketType === 'Run Out') dismissalText = `run out (${fielder || 'Fielder'})`;
+                else if (wicketType === 'Stumped') dismissalText = `st ${fielder || 'Keeper'} b ${prev.bowler}`;
                 else dismissalText = wicketType;
 
-                currentBatter.dismissal = dismissalText;
+                outBatterStats.dismissal = dismissalText;
                 newState.ballsLog = [...newState.ballsLog.slice(0, -1), 'W'];
 
                 if (newState.wickets < newState.maxWickets) {
                     newState.isPaused = true;
                     newState.pauseReason = 'WICKET';
-                    newState.striker = null;
+                    if (isStrikerOut) newState.striker = null;
+                    else newState.nonStriker = null;
                 }
             }
 
