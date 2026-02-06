@@ -115,16 +115,14 @@ export default function MatchSetup() {
     };
 
     const runToss = () => {
-        if (!tossResult.callingTeam || !tossResult.call) {
-            alert('Please select who is calling and their call (Heads/Tails).');
-            return;
-        }
-
         setIsFlipping(true);
+        // Reset previous results except for calling logic if we want to keep it, 
+        // but user wants a simpler flow where we ask who won after the flip.
+        setTossResult(prev => ({ ...prev, winner: '', choice: '', outcome: '' }));
+
         setTimeout(() => {
             const outcome = Math.random() > 0.5 ? 'heads' : 'tails';
-            const winner = tossResult.call === outcome ? tossResult.callingTeam : (tossResult.callingTeam === 'teamA' ? 'teamB' : 'teamA');
-            setTossResult(prev => ({ ...prev, outcome, winner }));
+            setTossResult(prev => ({ ...prev, outcome }));
             setIsFlipping(false);
         }, 1500);
     };
@@ -368,39 +366,7 @@ export default function MatchSetup() {
                         <motion.div key="step4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} style={{ textAlign: 'center' }}>
                             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '2rem' }}>Coin Toss</h2>
 
-                            <div className="card" style={{ marginBottom: '2rem', textAlign: 'left' }}>
-                                <label style={{ fontSize: '0.75rem', opacity: 0.5, display: 'block', marginBottom: '1rem' }}>WHO IS CALLING?</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
-                                    {['teamA', 'teamB'].map(t => (
-                                        <button
-                                            key={t}
-                                            className={`btn ${tossResult.callingTeam === t ? 'btn-primary' : ''}`}
-                                            onClick={() => setTossResult({ ...tossResult, callingTeam: t, winner: '', outcome: '' })}
-                                            style={{ padding: '0.75rem', border: '1px solid var(--card-border)' }}
-                                            disabled={isFlipping}
-                                        >
-                                            {matchConfig[t].name}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                <label style={{ fontSize: '0.75rem', opacity: 0.5, display: 'block', marginBottom: '1rem' }}>THE CALL</label>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                    {['heads', 'tails'].map(c => (
-                                        <button
-                                            key={c}
-                                            className={`btn ${tossResult.call === c ? 'btn-primary' : ''}`}
-                                            onClick={() => setTossResult({ ...tossResult, call: c, winner: '', outcome: '' })}
-                                            style={{ padding: '0.75rem', border: '1px solid var(--card-border)' }}
-                                            disabled={isFlipping}
-                                        >
-                                            {c.toUpperCase()}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div style={{ position: 'relative', height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '2rem' }}>
+                            <div style={{ position: 'relative', height: '180px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', marginBottom: '2rem' }}>
                                 <motion.div
                                     animate={isFlipping ? {
                                         rotateY: [0, 180, 360, 540, 720, 900, 1080],
@@ -416,7 +382,7 @@ export default function MatchSetup() {
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                         color: 'white',
-                                        fontSize: '2rem',
+                                        fontSize: '1.2rem',
                                         fontWeight: 900,
                                         boxShadow: '0 10px 20px rgba(0,0,0,0.2)',
                                         border: '4px solid rgba(255,255,255,0.3)',
@@ -424,54 +390,78 @@ export default function MatchSetup() {
                                         transformStyle: 'preserve-3d'
                                     }}
                                 >
-                                    <span style={{ backfaceVisibility: 'hidden' }}>
-                                        {tossResult.outcome ? tossResult.outcome[0].toUpperCase() : (tossResult.call ? tossResult.call[0].toUpperCase() : 'G')}
-                                    </span>
+                                    <div style={{ backfaceVisibility: 'hidden', position: 'absolute' }}>
+                                        HEADS
+                                    </div>
+                                    <div style={{ backfaceVisibility: 'hidden', position: 'absolute', transform: 'rotateY(180deg)' }}>
+                                        TAILS
+                                    </div>
                                 </motion.div>
+                                {tossResult.outcome && !isFlipping && (
+                                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} style={{ marginTop: '1rem', color: 'var(--primary)', fontWeight: 800, fontSize: '1.25rem' }}>
+                                        IT'S {tossResult.outcome.toUpperCase()}!
+                                    </motion.div>
+                                )}
                             </div>
 
-                            {!tossResult.winner && !isFlipping && (
+                            {!tossResult.outcome && !isFlipping && (
                                 <button className="btn btn-primary" style={{ width: '100%', padding: '1.25rem' }} onClick={runToss}>
                                     Flip the Coin!
                                 </button>
                             )}
 
-                            {tossResult.winner && !isFlipping && (
-                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                                    <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1.5rem', borderRadius: '16px', marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
-                                        <p style={{ opacity: 0.6, fontSize: '0.875rem' }}>It's {tossResult.outcome.toUpperCase()}!</p>
-                                        <p style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '0.5rem' }}>
-                                            {matchConfig[tossResult.winner].name} WON the toss!
-                                        </p>
-                                    </div>
-
-                                    <p style={{ opacity: 0.6, marginBottom: '1rem' }}>What did they choose?</p>
-                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                        <button
-                                            className={`btn ${tossResult.choice === 'bat' ? 'btn-primary' : ''}`}
-                                            style={{ padding: '1rem', border: '1px solid var(--card-border)' }}
-                                            onClick={() => setTossResult({ ...tossResult, choice: 'bat' })}
-                                        >
-                                            BAT
-                                        </button>
-                                        <button
-                                            className={`btn ${tossResult.choice === 'bowl' ? 'btn-primary' : ''}`}
-                                            style={{ padding: '1rem', border: '1px solid var(--card-border)' }}
-                                            onClick={() => setTossResult({ ...tossResult, choice: 'bowl' })}
-                                        >
-                                            BOWL
-                                        </button>
-                                    </div>
-
-                                    {tossResult.choice && (
-                                        <button className="btn btn-primary" style={{ width: '100%', marginTop: '2rem', padding: '1.25rem' }} onClick={() => setStep(5)}>
-                                            Continue to Confirmation
-                                        </button>
+                            {tossResult.outcome && !isFlipping && (
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ width: '100%' }}>
+                                    {!tossResult.winner ? (
+                                        <div className="card" style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+                                            <label style={{ fontSize: '0.75rem', opacity: 0.5, display: 'block', marginBottom: '1rem', textAlign: 'center' }}>WHO WON THE TOSS?</label>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                                {['teamA', 'teamB'].map(t => (
+                                                    <button
+                                                        key={t}
+                                                        className="btn"
+                                                        style={{ padding: '1rem', border: '1px solid var(--card-border)', background: 'var(--card-bg)' }}
+                                                        onClick={() => setTossResult({ ...tossResult, winner: t })}
+                                                    >
+                                                        {matchConfig[t].name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="card" style={{ textAlign: 'left', marginBottom: '1.5rem' }}>
+                                            <label style={{ fontSize: '0.75rem', opacity: 0.5, display: 'block', marginBottom: '1rem', textAlign: 'center' }}>
+                                                {matchConfig[tossResult.winner].name.toUpperCase()} SELECTED TO
+                                            </label>
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                                {['bat', 'bowl'].map(c => (
+                                                    <button
+                                                        key={c}
+                                                        className={`btn ${tossResult.choice === c ? 'btn-primary' : ''}`}
+                                                        style={{ padding: '1rem', border: '1px solid var(--card-border)' }}
+                                                        onClick={() => setTossResult({ ...tossResult, choice: c })}
+                                                    >
+                                                        {c.toUpperCase()}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
                                     )}
+
+                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                                        <button className="btn" style={{ flex: 1, opacity: 0.5 }} onClick={runToss}>
+                                            RE-TOSS
+                                        </button>
+                                        {tossResult.choice && (
+                                            <button className="btn btn-primary" style={{ flex: 2, padding: '1rem' }} onClick={() => setStep(5)}>
+                                                CONTINUE
+                                            </button>
+                                        )}
+                                    </div>
                                 </motion.div>
                             )}
 
-                            <button className="btn" style={{ marginTop: '1rem', opacity: 0.5 }} onClick={() => setStep(3)}>Back</button>
+                            {!isFlipping && <button className="btn" style={{ marginTop: '2rem', opacity: 0.5 }} onClick={() => setStep(3)}>Back to Squads</button>}
                         </motion.div>
                     )}
 
