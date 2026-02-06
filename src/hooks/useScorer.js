@@ -358,6 +358,25 @@ export const useScorer = (initialState = {}) => {
                 newState.nonStriker = temp;
             }
 
+            // 4. Check for Innings Completion
+            const totalOvers = Math.floor(newState.balls / 6);
+            const maxOvers = prev.maxOvers || 20;
+            const isOversComplete = totalOvers >= maxOvers;
+            const isAllOut = newState.wickets >= 10;
+
+            // Check if target is chased (2nd innings)
+            const isSecondInnings = prev.innings === 2;
+            const targetScore = isSecondInnings && prev.completedInnings?.[0]?.totalRuns ? prev.completedInnings[0].totalRuns + 1 : null;
+            const isTargetChased = isSecondInnings && targetScore && newState.totalRuns >= targetScore;
+
+            // Innings is complete if: overs done, all out, or target chased
+            if ((isOversComplete || isAllOut || isTargetChased) && !newState.isInningsComplete) {
+                newState.isInningsComplete = true;
+                newState.isPaused = true;
+                newState.pauseReason = 'INNINGS_COMPLETE';
+                newState.bowler = null;
+            }
+
             // 4. Publish Match Event for Live Feeds
             // Use setTimeout to ensure state update completes first
             setTimeout(() => {

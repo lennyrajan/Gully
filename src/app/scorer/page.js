@@ -298,7 +298,8 @@ function ScorerBoard({ config }) {
                             </div>
                         )}
 
-                        {matchState.pauseReason === 'WICKET' && (
+                        {/* New Batter Selection - Only show if striker OR nonStriker is null */}
+                        {matchState.pauseReason === 'WICKET' && (!matchState.striker || !matchState.nonStriker) && (
                             <>
                                 <div>
                                     <label style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', marginBottom: '1rem', display: 'block', color: 'var(--primary)' }}>Select New Batter</label>
@@ -340,7 +341,11 @@ function ScorerBoard({ config }) {
                                     >
                                         <option value="" disabled>Choose Striker...</option>
                                         {matchState.battingTeam.players
-                                            .filter(p => p.trim() !== '' && p !== matchState.nonStriker)
+                                            .filter(p => {
+                                                const hasPlayed = matchState.scorecard.batting[p];
+                                                const isOut = hasPlayed && hasPlayed.dismissal;
+                                                return p.trim() !== '' && p !== matchState.nonStriker && !isOut;
+                                            })
                                             .map(p => (
                                                 <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
                                             ))}
@@ -356,7 +361,11 @@ function ScorerBoard({ config }) {
                                     >
                                         <option value="" disabled>Choose Non-Striker...</option>
                                         {matchState.battingTeam.players
-                                            .filter(p => p.trim() !== '' && p !== matchState.striker)
+                                            .filter(p => {
+                                                const hasPlayed = matchState.scorecard.batting[p];
+                                                const isOut = hasPlayed && hasPlayed.dismissal;
+                                                return p.trim() !== '' && p !== matchState.striker && !isOut;
+                                            })
                                             .map(p => (
                                                 <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
                                             ))}
@@ -517,6 +526,46 @@ function ScorerBoard({ config }) {
                             ⚡ FREE HIT ⚡
                         </motion.div>
                     )}
+
+                    {/* Run Equation (Second Innings) */}
+                    {matchState.innings === 2 && matchState.completedInnings?.[0] && (() => {
+                        const targetScore = matchState.completedInnings[0].totalRuns + 1;
+                        const runsRequired = Math.max(0, targetScore - matchState.totalRuns);
+                        const maxBalls = (matchState.maxOvers || 20) * 6;
+                        const ballsRemaining = Math.max(0, maxBalls - matchState.balls);
+                        const wicketsRemaining = 10 - matchState.wickets;
+
+                        return (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="card"
+                                style={{
+                                    marginTop: '1.5rem',
+                                    padding: '1rem 1.5rem',
+                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    border: '1px solid var(--card-border)'
+                                }}
+                            >
+                                <p style={{ fontSize: '1.1rem', fontWeight: 600, textAlign: 'center' }}>
+                                    {runsRequired === 0 ? (
+                                        <span style={{ color: 'var(--primary)' }}>🎯 Target Reached!</span>
+                                    ) : (
+                                        <>
+                                            <span style={{ color: 'var(--primary)', fontSize: '1.5rem' }}>{runsRequired}</span> runs required
+                                            {' '}in{' '}
+                                            <span style={{ color: 'var(--accent)' }}>{ballsRemaining}</span> balls
+                                            {' '}with{' '}
+                                            <span style={{ color: 'var(--secondary)' }}>{wicketsRemaining}</span> wickets remaining
+                                        </>
+                                    )}
+                                </p>
+                                <p style={{ fontSize: '0.875rem', opacity: 0.6, marginTop: '0.5rem', textAlign: 'center' }}>
+                                    Target: {targetScore} | RRR: {ballsRemaining > 0 ? ((runsRequired / ballsRemaining) * 6).toFixed(2) : '0.00'}
+                                </p>
+                            </motion.div>
+                        );
+                    })()}
                 </motion.div>
 
                 {/* Ball by Ball Log */}
