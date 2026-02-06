@@ -16,6 +16,7 @@ import {
     Trophy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/lib/AuthProvider';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function ScorerPage() {
