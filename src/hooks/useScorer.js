@@ -37,9 +37,37 @@ export const useScorer = (initialState = {}) => {
         ...initialState
     });
 
-    const setStriker = (name) => setMatchState(prev => ({ ...prev, striker: name, isPaused: !prev.nonStriker || !prev.bowler }));
-    const setNonStriker = (name) => setMatchState(prev => ({ ...prev, nonStriker: name, isPaused: !prev.striker || !prev.bowler }));
-    const setBowler = (name) => setMatchState(prev => ({ ...prev, bowler: name, isPaused: !prev.striker || !prev.nonStriker, ballsLog: [], overRuns: 0 }));
+    const setStriker = useCallback((name) => {
+        setMatchState(prev => {
+            if (name && name === prev.nonStriker) return prev;
+            return {
+                ...prev,
+                striker: name,
+                isPaused: !name || !prev.nonStriker || !prev.bowler
+            };
+        });
+    }, []);
+
+    const setNonStriker = useCallback((name) => {
+        setMatchState(prev => {
+            if (name && name === prev.striker) return prev;
+            return {
+                ...prev,
+                nonStriker: name,
+                isPaused: !prev.striker || !name || !prev.bowler
+            };
+        });
+    }, []);
+
+    const setBowler = useCallback((name) => {
+        setMatchState(prev => ({
+            ...prev,
+            bowler: name,
+            isPaused: !prev.striker || !prev.nonStriker || !name,
+            ballsLog: [],
+            overRuns: 0
+        }));
+    }, []);
 
     const overs = useMemo(() => {
         const fullOvers = Math.floor(matchState.balls / 6);

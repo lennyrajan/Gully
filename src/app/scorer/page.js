@@ -251,9 +251,11 @@ function ScorerBoard({ config }) {
                                         value={matchState.striker || ''}
                                     >
                                         <option value="" disabled>Choose Striker...</option>
-                                        {matchState.battingTeam.players.filter(p => p !== matchState.nonStriker).map(p => (
-                                            <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
-                                        ))}
+                                        {matchState.battingTeam.players
+                                            .filter(p => p.trim() !== '' && p !== matchState.nonStriker)
+                                            .map(p => (
+                                                <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
+                                            ))}
                                     </select>
                                 </div>
                                 <div style={{ marginTop: '1.5rem' }}>
@@ -265,9 +267,11 @@ function ScorerBoard({ config }) {
                                         value={matchState.nonStriker || ''}
                                     >
                                         <option value="" disabled>Choose Non-Striker...</option>
-                                        {matchState.battingTeam.players.filter(p => p !== matchState.striker).map(p => (
-                                            <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
-                                        ))}
+                                        {matchState.battingTeam.players
+                                            .filter(p => p.trim() !== '' && p !== matchState.striker)
+                                            .map(p => (
+                                                <option key={p} value={p}>{getPlayerDisplayName(p, 'batting')}</option>
+                                            ))}
                                     </select>
                                 </div>
                                 <div style={{ marginTop: '1.5rem' }}>
@@ -279,9 +283,11 @@ function ScorerBoard({ config }) {
                                         value={matchState.bowler || ''}
                                     >
                                         <option value="" disabled>Choose Bowler...</option>
-                                        {matchState.bowlingTeam.players.map(p => (
-                                            <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
-                                        ))}
+                                        {matchState.bowlingTeam.players
+                                            .filter(p => p.trim() !== '')
+                                            .map(p => (
+                                                <option key={p} value={p}>{getPlayerDisplayName(p, 'bowling')}</option>
+                                            ))}
                                     </select>
                                 </div>
                             </>
