@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, limit } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
@@ -15,8 +15,8 @@ export default function LiveMatchBanner() {
         // Query for live matches
         const q = query(
             collection(db, 'matches'),
-            where('status', '==', 'LIVE'),
-            orderBy('lastUpdated', 'desc')
+            where('status', '==', 'LIVE')
+            // Removed orderBy to avoid composite index requirement
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
