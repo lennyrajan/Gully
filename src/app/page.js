@@ -15,9 +15,11 @@ import {
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import LiveMatchBanner from '@/components/LiveMatchBanner';
+import { useAuth } from '@/lib/AuthProvider';
 
 export default function Home() {
   const { theme, clubSettings } = useTheme();
+  const { currentUser, userProfile, signOut } = useAuth();
 
   const container = {
     hidden: { opacity: 0 },
@@ -70,6 +72,48 @@ export default function Home() {
             <h1 style={{ fontSize: '1.25rem' }}>{clubSettings?.name || 'Gully Pavilion'}</h1>
           </div>
         </motion.div>
+
+        {/* User Profile */}
+        {currentUser && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            style={{
+              position: 'absolute',
+              top: '2rem',
+              right: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem'
+            }}
+          >
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'var(--secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
+              fontWeight: 'bold',
+              fontSize: '0.875rem'
+            }}>
+              {userProfile?.displayName?.charAt(0) || currentUser.email?.charAt(0) || 'U'}
+            </div>
+            <button
+              onClick={signOut}
+              className="btn"
+              style={{
+                padding: '0.5rem 1rem',
+                background: 'rgba(255, 255, 255, 0.1)',
+                fontSize: '0.875rem'
+              }}
+            >
+              Sign Out
+            </button>
+          </motion.div>
+        )}
       </header>
 
       <div style={{ padding: '0 1.5rem' }}>

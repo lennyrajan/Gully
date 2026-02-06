@@ -15,6 +15,7 @@ import {
     Trophy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function ScorerPage() {
     const router = useRouter();
@@ -38,15 +39,15 @@ export default function ScorerPage() {
     }
 
     if (!config) {
-        return (
-            <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--background)', gap: '1rem' }}>
-                <p style={{ opacity: 0.6 }}>No active match configuration found.</p>
-                <button className="btn btn-primary" onClick={() => router.push('/scorer/setup')}>Start New Match</button>
-            </div>
-        );
+        router.push('/scorer/setup');
+        return null;
     }
 
-    return <ScorerBoard config={config} />;
+    return (
+        <ProtectedRoute>
+            <ScorerBoard config={config} />
+        </ProtectedRoute>
+    );
 }
 
 function ScorerBoard({ config }) {
