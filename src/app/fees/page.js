@@ -268,12 +268,27 @@ export default function FinesLedger() {
     );
 }
 
+// Fine Category Presets
+const FINE_CATEGORIES = [
+    { id: 'custom', label: 'Custom Fine', reason: '', amount: '' },
+    { id: 'dropped_catch', label: 'Dropped Catch', reason: 'Dropped a sitter', amount: '5.00' },
+    { id: 'duck', label: 'Golden Duck', reason: 'Out for a duck', amount: '3.00' },
+    { id: 'late_match', label: 'Late to Match', reason: 'Arrived late to match', amount: '10.00' },
+    { id: 'late_training', label: 'Late to Training', reason: 'Arrived late to training', amount: '5.00' },
+    { id: 'missed_training', label: 'Missed Training', reason: 'No show at training session', amount: '10.00' },
+    { id: 'equipment', label: 'Equipment Fee', reason: 'Equipment damage/replacement', amount: '20.00' },
+    { id: 'membership', label: 'Membership Dues', reason: 'Annual membership fee', amount: '50.00' },
+    { id: 'match_fee', label: 'Match Fee', reason: 'Match day fee', amount: '15.00' },
+    { id: 'social', label: 'Social Event', reason: 'Social event contribution', amount: '10.00' },
+];
+
 // Add Fine Modal Component
 function AddFineModal({ isOpen, onClose, teams, currentUser }) {
     const [formData, setFormData] = useState({
         teamId: '',
         playerId: '',
         playerName: '',
+        category: 'custom',
         reason: '',
         amount: ''
     });
@@ -333,7 +348,7 @@ function AddFineModal({ isOpen, onClose, teams, currentUser }) {
             });
 
             alert('Fine added successfully!');
-            setFormData({ teamId: '', playerId: '', playerName: '', reason: '', amount: '' });
+            setFormData({ teamId: '', playerId: '', playerName: '', category: 'custom', reason: '', amount: '' });
             onClose();
         } catch (error) {
             console.error('Error adding fine:', error);
@@ -349,6 +364,16 @@ function AddFineModal({ isOpen, onClose, teams, currentUser }) {
             ...prev,
             playerId: e.target.value,
             playerName: selectedMember?.displayName || ''
+        }));
+    };
+
+    const handleCategoryChange = (categoryId) => {
+        const category = FINE_CATEGORIES.find(c => c.id === categoryId);
+        setFormData(prev => ({
+            ...prev,
+            category: categoryId,
+            reason: category?.reason || prev.reason,
+            amount: category?.amount || prev.amount
         }));
     };
 
@@ -446,6 +471,30 @@ function AddFineModal({ isOpen, onClose, teams, currentUser }) {
                                 <option value="">Select player...</option>
                                 {teamMembers.map(member => (
                                     <option key={member.id} value={member.id}>{member.displayName}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Category Preset */}
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                                Category
+                            </label>
+                            <select
+                                value={formData.category}
+                                onChange={(e) => handleCategoryChange(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--card-border)',
+                                    background: 'var(--background)',
+                                    color: 'var(--foreground)',
+                                    fontSize: '1rem'
+                                }}
+                            >
+                                {FINE_CATEGORIES.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.label}</option>
                                 ))}
                             </select>
                         </div>

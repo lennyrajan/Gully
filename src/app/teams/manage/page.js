@@ -30,6 +30,7 @@ import { motion } from 'framer-motion';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { PERMISSIONS, hasPermission } from '@/lib/permissions';
 import { getPlayerRoleLabel, getBattingStyleLabel, getBowlingStyleLabel } from '@/lib/cricketConstants';
+import GuestBadge, { isGuestPlayer } from '@/components/GuestBadge';
 
 export default function TeamManagement() {
     const router = useRouter();
@@ -442,6 +443,9 @@ export default function TeamManagement() {
                                                                 }}>
                                                                     You
                                                                 </span>
+                                                            )}
+                                                            {isGuestPlayer(member) && (
+                                                                <GuestBadge size="small" />
                                                             )}
                                                         </div>
                                                         <p style={{ fontSize: '0.875rem', opacity: 0.7 }}>
