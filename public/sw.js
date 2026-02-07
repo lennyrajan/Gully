@@ -8,12 +8,10 @@ const STATIC_CACHE_NAME = 'gully-static-v1';
 const DYNAMIC_CACHE_NAME = 'gully-dynamic-v1';
 const OFFLINE_QUEUE_NAME = 'gully-offline-queue';
 
-// Static assets to cache immediately
+// Static assets to cache immediately (only ones that exist)
 const STATIC_ASSETS = [
     '/',
-    '/manifest.json',
-    '/icons/icon-192x192.png',
-    '/icons/icon-512x512.png'
+    '/manifest.json'
 ];
 
 // API routes to cache with network-first strategy
@@ -29,7 +27,14 @@ self.addEventListener('install', (event) => {
         caches.open(STATIC_CACHE_NAME)
             .then((cache) => {
                 console.log('[SW] Caching static assets');
-                return cache.addAll(STATIC_ASSETS);
+                // Cache each asset individually to handle failures gracefully
+                return Promise.allSettled(
+                    STATIC_ASSETS.map(asset =>
+                        cache.add(asset).catch(err => {
+                            console.warn('[SW] Failed to cache:', asset, err);
+                        })
+                    )
+                );
             })
             .then(() => {
                 console.log('[SW] Static assets cached');
@@ -100,7 +105,6 @@ self.addEventListener('fetch', (event) => {
 
     // For Firebase/external requests - network only
     if (!url.origin.includes(self.location.origin)) {
-        event.respondWith(fetch(request));
         return;
     }
 
@@ -245,17 +249,21 @@ function getOfflineFallback(request) {
  * Add request to offline queue for background sync
  */
 async function addToOfflineQueue(request) {
-    const db = await openOfflineDB();
-    const tx = db.transaction(OFFLINE_QUEUE_NAME, 'readwrite');
-    const store = tx.objectStore(OFFLINE_QUEUE_NAME);
+    try {
+        const db = await openOfflineDB();
+        const tx = db.transaction(OFFLINE_QUEUE_NAME, 'readwrite');
+        const store = tx.objectStore(OFFLINE_QUEUE_NAME);
 
-    await store.add({
-        url: request.url,
-        method: request.method,
-        headers: Object.fromEntries(request.headers.entries()),
-        body: await request.text(),
-        timestamp: Date.now()
-    });
+        await store.add({
+            url: request.url,
+            method: request.method,
+            headers: Object.fromEntries(request.headers.entries()),
+            body: await request.text(),
+            timestamp: Date.now()
+        });
+    } catch (error) {
+        console.warn('[SW] Failed to queue request:', error);
+    }
 }
 
 /**
@@ -325,24 +333,28 @@ self.addEventListener('push', (event) => {
 
     if (!event.data) return;
 
-    const payload = event.data.json();
-    const { title, body, icon, badge, data } = payload;
+    try {
+        const payload = event.data.json();
+        const { title, body, icon, badge, data } = payload;
 
-    const options = {
-        body,
-        icon: icon || '/icons/icon-192x192.png',
-        badge: badge || '/icons/badge-72x72.png',
-        vibrate: [100, 50, 100],
-        data,
-        actions: [
-            { action: 'open', title: 'Open' },
-            { action: 'dismiss', title: 'Dismiss' }
-        ]
-    };
+        const options = {
+            body,
+            icon: icon || '/next.svg',
+            badge: badge || '/next.svg',
+            vibrate: [100, 50, 100],
+            data,
+            actions: [
+                { action: 'open', title: 'Open' },
+                { action: 'dismiss', title: 'Dismiss' }
+            ]
+        };
 
-    event.waitUntil(
-        self.registration.showNotification(title, options)
-    );
+        event.waitUntil(
+            self.registration.showNotification(title, options)
+        );
+    } catch (error) {
+        console.warn('[SW] Failed to parse push payload:', error);
+    }
 });
 
 // Notification click handler

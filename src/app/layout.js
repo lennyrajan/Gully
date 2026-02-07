@@ -31,8 +31,8 @@ export const metadata = {
     title: "Gully",
   },
   icons: {
-    icon: "/icons/icon-192x192.png",
-    apple: "/icons/icon-192x192.png",
+    icon: "/next.svg",
+    apple: "/next.svg",
   },
 };
 

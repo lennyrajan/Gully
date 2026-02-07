@@ -137,8 +137,8 @@ export function showLocalNotification(title, body, data = {}) {
 
     const notification = new Notification(title, {
         body,
-        icon: '/icons/icon-192x192.png',
-        badge: '/icons/badge-72x72.png',
+        icon: '/next.svg',
+        badge: '/next.svg',
         tag: data.tag || 'gully-notification',
         data,
         requireInteraction: data.requireInteraction || false
