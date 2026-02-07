@@ -15,7 +15,10 @@ import {
   LogIn,
   User,
   Clock,
-  MapPin
+  MapPin,
+  BarChart3,
+  DollarSign,
+  CheckSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
@@ -540,12 +543,48 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
+                <Link href="/analytics" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <div className="card" style={{ cursor: 'pointer' }}>
+                    <BarChart3 size={24} style={{ marginBottom: '0.5rem', color: 'var(--primary)' }} />
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Analytics</h3>
+                    <p style={{ fontSize: '0.875rem', opacity: 0.7, marginTop: '0.25rem' }}>
+                      Performance stats & leaderboards
+                    </p>
+                  </div>
+                </Link>
+                <Link href="/schedule" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <div className="card" style={{ cursor: 'pointer' }}>
+                    <Calendar size={24} style={{ marginBottom: '0.5rem', color: 'var(--primary)' }} />
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Schedule</h3>
+                    <p style={{ fontSize: '0.875rem', opacity: 0.7, marginTop: '0.25rem' }}>
+                      Upcoming matches & fixtures
+                    </p>
+                  </div>
+                </Link>
+                <Link href="/availability" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <div className="card" style={{ cursor: 'pointer' }}>
+                    <CheckSquare size={24} style={{ marginBottom: '0.5rem', color: 'var(--primary)' }} />
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Availability</h3>
+                    <p style={{ fontSize: '0.875rem', opacity: 0.7, marginTop: '0.25rem' }}>
+                      Mark matches you can attend
+                    </p>
+                  </div>
+                </Link>
+                <Link href="/fees" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <div className="card" style={{ cursor: 'pointer' }}>
+                    <DollarSign size={24} style={{ marginBottom: '0.5rem', color: 'var(--primary)' }} />
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Fines & Fees</h3>
+                    <p style={{ fontSize: '0.875rem', opacity: 0.7, marginTop: '0.25rem' }}>
+                      Track payments and fines
+                    </p>
+                  </div>
+                </Link>
                 <Link href="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
                   <div className="card" style={{ cursor: 'pointer' }}>
                     <User size={24} style={{ marginBottom: '0.5rem', color: 'var(--primary)' }} />
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>My Profile</h3>
                     <p style={{ fontSize: '0.875rem', opacity: 0.7, marginTop: '0.25rem' }}>
-                      View your stats
+                      View your profile and team
                     </p>
                   </div>
                 </Link>
