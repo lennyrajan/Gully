@@ -11,6 +11,7 @@ import {
     createUserWithEmailAndPassword
 } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { hasPermission } from './permissions';
 
 const AuthContext = createContext({});
 
@@ -175,24 +176,11 @@ export function AuthProvider({ children }) {
         }
     };
 
+
     // Helper function to check if user has specific permission
     const checkPermission = (permission) => {
         if (!userProfile) return false;
-
-        const PERMISSIONS = {
-            CREATE_TEAM: ['super_admin'],
-            MANAGE_TEAM: ['super_admin', 'team_admin'],
-            APPROVE_PLAYERS: ['super_admin', 'team_admin'],
-            ADD_GUEST_PLAYERS: ['super_admin', 'team_admin'],
-            CREATE_MATCH: ['super_admin', 'team_admin', 'player'],
-            SCORE_MATCH: ['super_admin', 'team_admin', 'player'],
-            CREATE_POST: ['super_admin', 'team_admin', 'player'],
-            CREATE_FINE: ['super_admin', 'team_admin'],
-            EDIT_OWN_PROFILE: ['super_admin', 'team_admin', 'player', 'guest'],
-            VIEW_PROFILES: ['super_admin', 'team_admin', 'player', 'guest']
-        };
-
-        return PERMISSIONS[permission]?.includes(userProfile.role) || false;
+        return hasPermission(userProfile.role, permission);
     };
 
     // Helper function to check if user is admin of specific team
