@@ -49,7 +49,7 @@ export default function SchedulePage() {
     // Real-time listener for scheduled matches
     useEffect(() => {
         if (!userProfile?.teams || userProfile.teams.length === 0) {
-            setLoading(false);
+            setTimeout(() => setLoading(false), 0);
             return;
         }
 

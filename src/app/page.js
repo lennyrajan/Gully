@@ -86,7 +86,7 @@ export default function Home() {
       }
     };
     fetchActiveMatches();
-  }, [showPortal]);
+  }, [showPortal, currentUser]);
 
   // Load recent matches (public)
   useEffect(() => {

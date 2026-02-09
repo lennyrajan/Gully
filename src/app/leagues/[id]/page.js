@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/lib/AuthProvider';
 import { db } from '@/lib/firebase';
@@ -70,9 +70,9 @@ export default function LeagueDashboard() {
         };
 
         fetchLeagueData();
-    }, [id]);
+    }, [id, router]);
 
-    const fetchAllTeams = async () => {
+    const fetchAllTeams = useCallback(async () => {
         try {
             const querySnapshot = await getDocs(collection(db, 'teams'));
             const teamsData = querySnapshot.docs.map(doc => ({
@@ -80,17 +80,17 @@ export default function LeagueDashboard() {
                 ...doc.data()
             }));
             // Filter out teams already in the league
-            setAllTeams(teamsData.filter(t => !league.teamIds?.includes(t.id)));
+            setAllTeams(teamsData.filter(t => !league?.teamIds?.includes(t.id)));
         } catch (error) {
             console.error('Error fetching all teams:', error);
         }
-    };
+    }, [league?.teamIds]);
 
     useEffect(() => {
         if (showAddTeam) {
             fetchAllTeams();
         }
-    }, [showAddTeam]);
+    }, [showAddTeam, fetchAllTeams]);
 
     const handleAddTeam = async (teamId) => {
         try {

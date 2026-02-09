@@ -93,13 +93,15 @@ export default function PlayerProfile() {
                 }
             });
 
-            setStats({
-                runs: newRuns,
-                wickets: newWickets,
-                avg: (newRuns / 72).toFixed(1), // Mocking innings
-                sr: ((newRuns / totalBalls) * 100).toFixed(1),
-                history
-            });
+            setTimeout(() => {
+                setStats({
+                    runs: newRuns,
+                    wickets: newWickets,
+                    avg: (newRuns / 72).toFixed(1), // Mocking innings
+                    sr: ((newRuns / totalBalls) * 100).toFixed(1),
+                    history
+                });
+            }, 0);
         }
     }, []);
 

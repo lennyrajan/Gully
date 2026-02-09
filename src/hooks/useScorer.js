@@ -82,7 +82,7 @@ export const useScorer = (initialState = {}) => {
         }
     }, [matchState.matchId, matchState.innings, matchState.battingTeam.name, matchState.bowlingTeam.name]);
 
-    const deepCloneScorecard = (scorecard) => {
+    const deepCloneScorecard = useCallback((scorecard) => {
         const newScorecard = { batting: {}, bowling: {} };
         if (!scorecard) return newScorecard;
 
@@ -97,7 +97,7 @@ export const useScorer = (initialState = {}) => {
             }
         }
         return newScorecard;
-    };
+    }, []);
 
     const setStriker = useCallback((name) => {
         setMatchState(prev => {
@@ -240,7 +240,7 @@ export const useScorer = (initialState = {}) => {
                 pauseReason: null
             };
         });
-    }, []);
+    }, [deepCloneScorecard]);
 
     const updateDLS = useCallback((revisedTarget) => {
         setMatchState(prev => ({
@@ -723,7 +723,7 @@ export const useScorer = (initialState = {}) => {
 
             return newState;
         });
-    }, [publishMatchEvent]);
+    }, [publishMatchEvent, deepCloneScorecard]);
 
     const undo = useCallback(() => {
         setMatchState(prev => {

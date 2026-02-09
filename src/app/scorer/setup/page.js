@@ -42,7 +42,7 @@ export default function MatchSetup() {
     const { currentUser } = useAuth();
 
     useEffect(() => {
-        setDeviceId(getDeviceId());
+        setTimeout(() => setDeviceId(getDeviceId()), 0);
 
         const loadTeams = async () => {
             try {
@@ -512,7 +512,7 @@ export default function MatchSetup() {
                             {tossResult.winner && !isFlipping && (
                                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                                     <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: '1.5rem', borderRadius: '16px', marginBottom: '1.5rem', border: '1px solid var(--primary)' }}>
-                                        <p style={{ opacity: 0.6, fontSize: '0.875rem' }}>It's {tossResult.outcome.toUpperCase()}!</p>
+                                        <p style={{ opacity: 0.6, fontSize: '0.875rem' }}>It&apos;s {tossResult.outcome.toUpperCase()}!</p>
                                         <p style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '0.5rem' }}>
                                             {matchConfig[tossResult.winner].name} WON the toss!
                                         </p>

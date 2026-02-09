@@ -113,7 +113,7 @@ export default function OnboardingPage() {
 
                 <div style={{ marginTop: 'auto', paddingTop: '3rem', textAlign: 'center' }}>
                     <p style={{ fontSize: '0.875rem', opacity: 0.5 }}>
-                        Don't worry, you can change your role or join multiple teams later.
+                        Don&apos;t worry, you can change your role or join multiple teams later.
                     </p>
                 </div>
             </main>

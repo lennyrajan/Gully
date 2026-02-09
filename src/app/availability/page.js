@@ -66,7 +66,7 @@ export default function AvailabilityHub() {
     // Real-time listener for games
     useEffect(() => {
         if (!userProfile?.teams || userProfile.teams.length === 0) {
-            setLoading(false);
+            setTimeout(() => setLoading(false), 0);
             return;
         }
 

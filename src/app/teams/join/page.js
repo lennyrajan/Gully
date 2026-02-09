@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, onSnapshot } from 'firebase/firestore';
 import { ChevronLeft, Search, Send, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import ProtectedRoute from '@/components/ProtectedRoute';
 
 export default function JoinTeam() {
@@ -232,10 +233,12 @@ export default function JoinTeam() {
                                     >
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                             {team.logo ? (
-                                                <img
+                                                <Image
                                                     src={team.logo}
                                                     alt={team.name}
-                                                    style={{ width: '56px', height: '56px', borderRadius: '12px', objectFit: 'cover' }}
+                                                    width={56}
+                                                    height={56}
+                                                    style={{ borderRadius: '12px', objectFit: 'cover' }}
                                                 />
                                             ) : (
                                                 <div style={{

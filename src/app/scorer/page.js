@@ -29,7 +29,7 @@ export default function ScorerPage() {
     useEffect(() => {
         const saved = localStorage.getItem('currentMatchConfig');
         if (saved) {
-            setConfig(JSON.parse(saved));
+            setTimeout(() => setConfig(JSON.parse(saved)), 0);
         }
         setIsLoading(false);
     }, []);
@@ -172,11 +172,13 @@ function ScorerBoard({ config }) {
     useEffect(() => {
         if (matchState.isMatchFinished && !showMatchSummary) {
             const calculatedMvps = calculateMVPs(matchState.scorecard);
-            setMvps(calculatedMvps);
-            if (calculatedMvps.length > 0) {
-                setSelectedPOTM(calculatedMvps[0].name);
-            }
-            setShowMatchSummary(true);
+            setTimeout(() => {
+                setMvps(calculatedMvps);
+                if (calculatedMvps.length > 0) {
+                    setSelectedPOTM(calculatedMvps[0].name);
+                }
+                setShowMatchSummary(true);
+            }, 0);
         }
     }, [matchState.isMatchFinished, matchState.scorecard, showMatchSummary]);
 

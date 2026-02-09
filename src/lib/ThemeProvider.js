@@ -14,13 +14,15 @@ export const ThemeProvider = ({ children }) => {
         const currentSlug = window.location.pathname.split('/')[1] || 'pvcc';
 
         if (currentSlug === 'pvcc') {
-            setTheme('pvcc');
-            setClubSettings({
-                name: 'Pine Valley Cricket Club',
-                primary: '#1e3a8a',
-                secondary: '#fbbf24',
-                logo: '/pvcc-logo.png' // Mock logo path
-            });
+            setTimeout(() => {
+                setTheme('pvcc');
+                setClubSettings({
+                    name: 'Pine Valley Cricket Club',
+                    primary: '#1e3a8a',
+                    secondary: '#fbbf24',
+                    logo: '/pvcc-logo.png' // Mock logo path
+                });
+            }, 0);
         }
     }, []);
 

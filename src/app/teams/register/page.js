@@ -8,6 +8,7 @@ import { collection, addDoc, doc, updateDoc, arrayUnion } from 'firebase/firesto
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ChevronLeft, Upload, Check } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { PERMISSIONS, hasPermission } from '@/lib/permissions';
 
@@ -165,7 +166,7 @@ export default function TeamRegistration() {
                                         overflow: 'hidden',
                                         border: '2px solid var(--primary)'
                                     }}>
-                                        <img src={logoPreview} alt="Team logo preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                        <Image src={logoPreview} alt="Team logo preview" width={120} height={120} style={{ objectFit: 'cover' }} />
                                     </div>
                                 ) : (
                                     <div style={{

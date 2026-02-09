@@ -28,6 +28,7 @@ import {
     Briefcase
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { PERMISSIONS, hasPermission, USER_ROLES } from '@/lib/permissions';
 import { getPlayerRoleLabel, getBattingStyleLabel, getBowlingStyleLabel } from '@/lib/cricketConstants';
@@ -343,10 +344,12 @@ export default function TeamManagement() {
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'white' }}>
                                     {selectedTeam.logo ? (
-                                        <img
+                                        <Image
                                             src={selectedTeam.logo}
                                             alt={selectedTeam.name}
-                                            style={{ width: '64px', height: '64px', borderRadius: '12px', objectFit: 'cover' }}
+                                            width={64}
+                                            height={64}
+                                            style={{ borderRadius: '12px', objectFit: 'cover' }}
                                         />
                                     ) : (
                                         <div style={{
@@ -563,7 +566,7 @@ export default function TeamManagement() {
                                                     </p>
                                                     {request.message && (
                                                         <p style={{ fontSize: '0.875rem', marginTop: '0.5rem', fontStyle: 'italic' }}>
-                                                            "{request.message}"
+                                                            &quot;{request.message}&quot;
                                                         </p>
                                                     )}
                                                     <p style={{ fontSize: '0.75rem', opacity: 0.5, marginTop: '0.5rem' }}>

@@ -53,7 +53,7 @@ export default function FinesLedger() {
     // Real-time listener for fines
     useEffect(() => {
         if (!userProfile?.teams || userProfile.teams.length === 0) {
-            setLoading(false);
+            setTimeout(() => setLoading(false), 0);
             return;
         }
 
