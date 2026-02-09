@@ -65,9 +65,22 @@ export function AuthProvider({ children }) {
                 }
 
                 // Update last login
-                await setDoc(userRef, {
+                const updates = {
                     lastLogin: new Date().toISOString()
-                }, { merge: true });
+                };
+
+                // Promotion logic for super user
+                if (user.email === 'lennyrajan@gmail.com' && (!userSnap.exists() || userSnap.data().role !== 'super_admin')) {
+                    updates.role = 'super_admin';
+                }
+
+                await setDoc(userRef, updates, { merge: true });
+
+                // Refresh local profile if promoted
+                if (updates.role) {
+                    const updatedSnap = await getDoc(userRef);
+                    setUserProfile(updatedSnap.data());
+                }
             } else {
                 setUserProfile(null);
             }
@@ -97,7 +110,7 @@ export function AuthProvider({ children }) {
         }
     };
 
-    const signUpWithEmail = async (email, password, displayName) => {
+    const signUpWithEmail = async (email, password, displayName, cricketProfile = {}) => {
         try {
             const result = await createUserWithEmailAndPassword(auth, email, password);
 
@@ -108,18 +121,18 @@ export function AuthProvider({ children }) {
                 photoURL: null,
 
                 // Role & Team Info
-                role: 'player',
+                role: email === 'lennyrajan@gmail.com' ? 'super_admin' : 'player',
                 teams: [],
                 primaryTeamId: null,
 
                 // Cricket Profile
                 cricketProfile: {
-                    playerRole: null,
-                    battingStyle: null,
-                    bowlingStyle: null,
-                    dateOfBirth: null,
-                    gender: null,
-                    jerseyNumber: null
+                    playerRole: cricketProfile.playerRole || null,
+                    battingStyle: cricketProfile.battingStyle || null,
+                    bowlingStyle: cricketProfile.bowlingStyle || null,
+                    dateOfBirth: cricketProfile.dateOfBirth || null,
+                    gender: cricketProfile.gender || null,
+                    jerseyNumber: cricketProfile.jerseyNumber || null
                 },
 
                 // Metadata
@@ -129,6 +142,7 @@ export function AuthProvider({ children }) {
             };
 
             await setDoc(doc(db, 'users', result.user.uid), newProfile);
+            return result.user;
         } catch (error) {
             console.error('Error signing up:', error);
             throw error;

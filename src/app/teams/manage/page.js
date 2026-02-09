@@ -24,11 +24,12 @@ import {
     Crown,
     CheckCircle,
     XCircle,
-    UserX
+    UserX,
+    Briefcase
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import { PERMISSIONS, hasPermission } from '@/lib/permissions';
+import { PERMISSIONS, hasPermission, USER_ROLES } from '@/lib/permissions';
 import { getPlayerRoleLabel, getBattingStyleLabel, getBowlingStyleLabel } from '@/lib/cricketConstants';
 import GuestBadge, { isGuestPlayer } from '@/components/GuestBadge';
 
@@ -170,6 +171,38 @@ export default function TeamManagement() {
         } catch (error) {
             console.error('Error rejecting request:', error);
             alert('Failed to reject request. Please try again.');
+        }
+    };
+
+    const handleToggleAccountManager = async (member) => {
+        if (!selectedTeam || !currentUser || !canManage) return;
+
+        const isCurrentlyAO = member.role === USER_ROLES.ACCOUNTS_OFFICER;
+        const confirmMsg = isCurrentlyAO
+            ? `Remove Account Manager role from ${member.displayName}?`
+            : `Make ${member.displayName} an Account Manager for ${selectedTeam.name}?`;
+
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            const newRole = isCurrentlyAO ? USER_ROLES.PLAYER : USER_ROLES.ACCOUNTS_OFFICER;
+            await updateUserProfile(member.uid, { role: newRole });
+
+            // Reload members to reflect change
+            const memberPromises = selectedTeam.memberIds.map(async (memberId) => {
+                const userDoc = await getDoc(doc(db, 'users', memberId));
+                if (userDoc.exists()) {
+                    return { uid: userDoc.id, ...userDoc.data() };
+                }
+                return null;
+            });
+            const members = (await Promise.all(memberPromises)).filter(Boolean);
+            setTeamMembers(members);
+
+            alert(`${member.displayName} is now ${isCurrentlyAO ? 'a regular Player' : 'an Account Manager'}.`);
+        } catch (error) {
+            console.error('Error updating role:', error);
+            alert('Failed to update role. Please try again.');
         }
     };
 
@@ -433,6 +466,9 @@ export default function TeamManagement() {
                                                             {isTeamAdmin && (
                                                                 <Shield size={16} style={{ color: 'var(--primary)' }} title="Team Admin" />
                                                             )}
+                                                            {member.role === USER_ROLES.ACCOUNTS_OFFICER && (
+                                                                <Briefcase size={16} style={{ color: '#fbbf24' }} title="Account Manager" />
+                                                            )}
                                                             {isCurrentUser && (
                                                                 <span style={{
                                                                     fontSize: '0.75rem',
@@ -463,18 +499,35 @@ export default function TeamManagement() {
                                                         )}
                                                     </div>
                                                     {canManage && !isCurrentUser && (
-                                                        <button
-                                                            onClick={() => handleRemovePlayer(member.uid, member.displayName)}
-                                                            className="btn"
-                                                            style={{
-                                                                padding: '0.5rem',
-                                                                background: 'transparent',
-                                                                color: 'var(--error)'
-                                                            }}
-                                                            title="Remove from team"
-                                                        >
-                                                            <UserX size={18} />
-                                                        </button>
+                                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                            {!isTeamAdmin && (
+                                                                <button
+                                                                    onClick={() => handleToggleAccountManager(member)}
+                                                                    className="btn"
+                                                                    style={{
+                                                                        padding: '0.5rem',
+                                                                        background: 'transparent',
+                                                                        color: member.role === USER_ROLES.ACCOUNTS_OFFICER ? '#fbbf24' : 'var(--foreground)',
+                                                                        opacity: member.role === USER_ROLES.ACCOUNTS_OFFICER ? 1 : 0.5
+                                                                    }}
+                                                                    title={member.role === USER_ROLES.ACCOUNTS_OFFICER ? "Revoke Account Manager" : "Make Account Manager"}
+                                                                >
+                                                                    <Briefcase size={18} />
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                onClick={() => handleRemovePlayer(member.uid, member.displayName)}
+                                                                className="btn"
+                                                                style={{
+                                                                    padding: '0.5rem',
+                                                                    background: 'transparent',
+                                                                    color: 'var(--error)'
+                                                                }}
+                                                                title="Remove from team"
+                                                            >
+                                                                <UserX size={18} />
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </div>
                                             </motion.div>

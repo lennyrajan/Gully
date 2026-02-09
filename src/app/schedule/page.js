@@ -404,6 +404,21 @@ function MatchCard({ match, canEdit, onEdit, onDelete, showDate }) {
                             {match.format} overs
                         </span>
                     )}
+                    {match.leagueId && (
+                        <span style={{
+                            display: 'inline-block',
+                            marginTop: '0.5rem',
+                            marginLeft: '0.5rem',
+                            fontSize: '0.7rem',
+                            background: '#fbbf24',
+                            color: 'black',
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontWeight: 700
+                        }}>
+                            TOURNAMENT
+                        </span>
+                    )}
                 </div>
                 {canEdit && (
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -427,8 +442,10 @@ function ScheduleMatchModal({ isOpen, onClose, editingMatch, userProfile, curren
         date: '',
         time: '',
         venue: '',
-        format: '20'
+        format: '20',
+        leagueId: ''
     });
+    const [leagues, setLeagues] = useState([]);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
@@ -439,7 +456,8 @@ function ScheduleMatchModal({ isOpen, onClose, editingMatch, userProfile, curren
                 date: editingMatch.date || '',
                 time: editingMatch.time || '',
                 venue: editingMatch.venue || '',
-                format: editingMatch.format || '20'
+                format: editingMatch.format || '20',
+                leagueId: editingMatch.leagueId || ''
             });
         } else if (editingMatch?.date) {
             // Scheduling for a specific date
@@ -458,9 +476,22 @@ function ScheduleMatchModal({ isOpen, onClose, editingMatch, userProfile, curren
                 date: '',
                 time: '',
                 venue: '',
-                format: '20'
+                format: '20',
+                leagueId: ''
             });
         }
+
+        // Fetch user's leagues to link
+        const fetchLeagues = async () => {
+            try {
+                const q = query(collection(db, 'leagues'));
+                const snap = await getDocs(q);
+                setLeagues(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            } catch (err) {
+                console.error('Error fetching leagues for scheduling:', err);
+            }
+        };
+        if (isOpen) fetchLeagues();
     }, [editingMatch, userProfile, isOpen]);
 
     const handleSubmit = async (e) => {
@@ -628,6 +659,30 @@ function ScheduleMatchModal({ isOpen, onClose, editingMatch, userProfile, curren
                                     fontSize: '1rem'
                                 }}
                             />
+                        </div>
+
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, marginBottom: '0.5rem' }}>
+                                League / Tournament (Optional)
+                            </label>
+                            <select
+                                value={formData.leagueId}
+                                onChange={(e) => setFormData(prev => ({ ...prev, leagueId: e.target.value }))}
+                                style={{
+                                    width: '100%',
+                                    padding: '0.75rem',
+                                    borderRadius: '8px',
+                                    border: '1px solid var(--card-border)',
+                                    background: 'var(--background)',
+                                    color: 'var(--foreground)',
+                                    fontSize: '1rem'
+                                }}
+                            >
+                                <option value="">Friendly Match (None)</option>
+                                {leagues.map(l => (
+                                    <option key={l.id} value={l.id}>{l.name}</option>
+                                ))}
+                            </select>
                         </div>
 
                         <div>

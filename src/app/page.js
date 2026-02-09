@@ -234,20 +234,36 @@ export default function Home() {
               </button>
             </div>
           ) : (
-            <button
-              onClick={signInWithGoogle}
-              className="btn btn-primary"
-              style={{
-                padding: '0.5rem 1.25rem',
-                fontSize: '0.875rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}
-            >
-              <LogIn size={18} />
-              Sign In
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <Link href="/login" style={{ textDecoration: 'none' }}>
+                <button
+                  className="btn"
+                  style={{
+                    padding: '0.5rem 1rem',
+                    fontSize: '0.875rem',
+                    color: 'var(--foreground)',
+                    background: 'transparent',
+                    border: '1px solid var(--card-border)'
+                  }}
+                >
+                  Log In
+                </button>
+              </Link>
+              <Link href="/login" style={{ textDecoration: 'none' }}>
+                <button
+                  className="btn btn-primary"
+                  style={{
+                    padding: '0.5rem 1.25rem',
+                    fontSize: '0.875rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem'
+                  }}
+                >
+                  Register
+                </button>
+              </Link>
+            </div>
           )}
         </div>
       </header>
@@ -267,30 +283,54 @@ export default function Home() {
             <motion.div variants={item} className="card" style={{
               background: 'linear-gradient(135deg, var(--primary), var(--primary-hover))',
               color: 'white',
-              padding: '3rem 2rem',
-              textAlign: 'center'
+              padding: '4rem 2rem',
+              textAlign: 'center',
+              borderRadius: '24px'
             }}>
-              <Trophy size={48} style={{ margin: '0 auto 1rem' }} />
-              <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '1rem' }}>
-                Welcome to Gully
+              <Trophy size={64} style={{ margin: '0 auto 1.5rem', opacity: 0.9 }} />
+              <h2 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '1rem', lineHeight: 1.1 }}>
+                Your Cricket Pavilion,<br />Digitalized.
               </h2>
-              <p style={{ fontSize: '1.1rem', opacity: 0.9, marginBottom: '2rem' }}>
-                Your digital cricket pavilion. Track live scores, view match history, and connect with your club.
+              <p style={{ fontSize: '1.25rem', opacity: 0.9, marginBottom: '2.5rem', maxWidth: '600px', margin: '0 auto 2.5rem' }}>
+                Track live scores, manage your team, and stay updated with your local league. Join the most advanced cricket management platform.
               </p>
-              <button
-                onClick={signInWithGoogle}
-                className="btn"
-                style={{
-                  background: 'white',
-                  color: 'var(--primary)',
-                  padding: '1rem 2rem',
-                  fontSize: '1.1rem',
-                  fontWeight: 700
-                }}
-              >
-                <LogIn size={20} />
-                Sign In to Get Started
-              </button>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                <Link href="/login" style={{ textDecoration: 'none' }}>
+                  <button
+                    className="btn"
+                    style={{
+                      background: 'white',
+                      color: 'var(--primary)',
+                      padding: '1rem 2.5rem',
+                      fontSize: '1.1rem',
+                      fontWeight: 700,
+                      borderRadius: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    Get Started Free
+                  </button>
+                </Link>
+                <Link href="/login" style={{ textDecoration: 'none' }}>
+                  <button
+                    className="btn"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.15)',
+                      color: 'white',
+                      padding: '1rem 2rem',
+                      fontSize: '1.1rem',
+                      fontWeight: 600,
+                      borderRadius: '12px',
+                      backdropFilter: 'blur(10px)',
+                      border: '1px solid rgba(255, 255, 255, 0.3)'
+                    }}
+                  >
+                    Log In
+                  </button>
+                </Link>
+              </div>
             </motion.div>
           )}
 
@@ -585,6 +625,15 @@ export default function Home() {
                     <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>My Profile</h3>
                     <p style={{ fontSize: '0.875rem', opacity: 0.7, marginTop: '0.25rem' }}>
                       View your profile and team
+                    </p>
+                  </div>
+                </Link>
+                <Link href="/leagues" style={{ textDecoration: 'none', color: 'inherit' }}>
+                  <div className="card" style={{ cursor: 'pointer' }}>
+                    <Trophy size={24} style={{ marginBottom: '0.5rem', color: 'var(--primary)' }} />
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Tournaments</h3>
+                    <p style={{ fontSize: '0.875rem', opacity: 0.7, marginTop: '0.25rem' }}>
+                      Leagues, cups and competitions
                     </p>
                   </div>
                 </Link>
